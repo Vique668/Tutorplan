@@ -8,8 +8,11 @@ import { Sidebar } from "./sidebar";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
+  const isAuthPage = ["/login", "/register", "/forgot-password", "/reset-password", "/portal"].includes(pathname);
 
   useEffect(() => setMenuOpen(false), [pathname]);
+
+  if (isAuthPage) return <>{children}</>;
 
   return (
     <div className="app-shell">

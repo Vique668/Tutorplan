@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   CalendarDays,
@@ -9,12 +10,13 @@ import {
   CircleDollarSign,
   ClipboardCheck,
   GraduationCap,
-  MoreHorizontal,
+  LogOut,
   Settings,
   Users,
   X,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { createClient } from "../../../lib/supabase/client";
 
 const navigation = [
   { href: "/calendar", label: "Календарь", icon: CalendarDays },
@@ -29,6 +31,39 @@ const navigation = [
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [profile, setProfile] = useState({ firstName: "", lastName: "", email: "", avatarUrl: "" });
+
+  useEffect(() => {
+    let active = true;
+    const supabase = createClient();
+    void supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user || !active) return;
+      const { data: loadedProfile } = await supabase
+        .from("profiles")
+        .select("first_name,last_name,avatar_url")
+        .eq("id", data.user.id)
+        .maybeSingle();
+      if (active) {
+        setProfile({
+          firstName: loadedProfile?.first_name ?? "",
+          lastName: loadedProfile?.last_name ?? "",
+          email: data.user.email ?? "",
+          avatarUrl: loadedProfile?.avatar_url ?? "",
+        });
+      }
+    });
+    return () => { active = false; };
+  }, []);
+
+  async function logout() {
+    await createClient().auth.signOut();
+    router.replace("/login");
+    router.refresh();
+  }
+
+  const fullName = `${profile.firstName} ${profile.lastName}`.trim() || profile.email || "Репетитор";
+  const initials = `${profile.firstName[0] ?? ""}${profile.lastName[0] ?? ""}` || "ТП";
 
   return (
     <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
@@ -55,12 +90,12 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       </nav>
 
       <div className="sidebar-profile">
-        <Avatar initials="АМ" color="peach" />
+        {profile.avatarUrl ? <img className="sidebar-avatar-image" src={profile.avatarUrl} alt="Фото профиля" /> : <Avatar initials={initials} color="peach" />}
         <div>
-          <strong>Анна Морозова</strong>
+          <strong>{fullName}</strong>
           <small>Репетитор</small>
         </div>
-        <button className="icon-button" aria-label="Меню профиля"><MoreHorizontal size={18} /></button>
+        <button className="icon-button" aria-label="Выйти из аккаунта" title="Выйти" onClick={() => void logout()}><LogOut size={17} /></button>
       </div>
     </aside>
   );

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Pencil, Power, Trash2, X } from "lucide-react";
 import type { Student } from "@/components/students/student-types";
+import type { StudentGroup } from "@/components/groups/group-types";
 import { Button } from "@/components/ui/button";
 import type {
   CreateLessonSeriesInput,
@@ -15,6 +16,7 @@ import { formatLessonEnd, timeToMinutes } from "@/components/calendar/date-utils
 
 type ScheduleFormModalProps = {
   students: Student[];
+  groups: StudentGroup[];
   initialStartDate: string;
   initialWeekday: number;
   isSubmitting: boolean;
@@ -28,6 +30,7 @@ type ScheduleFormModalProps = {
 
 export function ScheduleFormModal({
   students,
+  groups,
   initialStartDate,
   initialWeekday,
   isSubmitting,
@@ -38,7 +41,7 @@ export function ScheduleFormModal({
   onDelete,
   onToggle,
 }: ScheduleFormModalProps) {
-  const [draft, setDraft] = useState<CreateLessonSeriesInput>(() => series ? toDraft(series) : createInitialDraft(students[0], initialStartDate, initialWeekday));
+  const [draft, setDraft] = useState<CreateLessonSeriesInput>(() => series ? toDraft(series) : createInitialDraft(students[0], groups[0], initialStartDate, initialWeekday));
   const [editing, setEditing] = useState(!series);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -82,14 +85,29 @@ export function ScheduleFormModal({
     const student = students.find((item) => item.id === studentId);
     setDraft((current) => ({
       ...current,
+      targetType: "student",
       studentId,
+      groupId: null,
+      duration: student?.lessonDuration ?? current.duration,
+      endTime: student ? formatLessonEnd(current.startTime, student.lessonDuration) : current.endTime,
       price: student?.lessonPrice ?? current.price,
     }));
     setValidationError(null);
   }
 
+  function selectGroup(groupId: string) {
+    const group = groups.find((item) => item.id === groupId);
+    setDraft((current) => ({ ...current, targetType: "group", studentId: null, groupId, duration: group?.lessonDuration ?? current.duration, endTime: group ? formatLessonEnd(current.startTime, group.lessonDuration) : current.endTime, price: group?.lessonPrice ?? current.price }));
+    setValidationError(null);
+  }
+
+  function selectTargetType(targetType: "student" | "group") {
+    if (targetType === "student") selectStudent(students[0]?.id ?? "");
+    else selectGroup(groups[0]?.id ?? "");
+  }
+
   async function submit() {
-    const nextError = validateDraft(draft, students);
+    const nextError = validateDraft(draft, students, groups);
     if (nextError) {
       setValidationError(nextError);
       return;
@@ -105,6 +123,8 @@ export function ScheduleFormModal({
   }
 
   const student = students.find((item) => item.id === draft.studentId);
+  const group = groups.find((item) => item.id === draft.groupId);
+  const targetLabel = group?.name ?? (student ? `${student.firstName} ${student.lastName}` : "Участник не найден");
   const title = series ? (editing ? "Редактировать расписание" : "Расписание") : "Добавить в расписание";
 
   return createPortal(
@@ -120,7 +140,7 @@ export function ScheduleFormModal({
         {series && !editing ? (
           <div className="lesson-details-content" aria-busy={isSubmitting}>
             <div className="lesson-details-grid">
-              <div className="lesson-details-full"><span>Ученик</span><strong>{student ? `${student.firstName} ${student.lastName}` : "Ученик не найден"}</strong></div>
+              <div className="lesson-details-full"><span>{draft.targetType === "group" ? "Группа" : "Ученик"}</span><strong>{targetLabel}</strong></div>
               <div><span>День недели</span><strong>{weekdays[draft.weekday - 1]?.label}</strong></div>
               <div><span>Начало</span><strong>{draft.startTime}</strong></div>
               <div><span>Продолжительность</span><strong>{formatDuration(draft.duration)}</strong></div>
@@ -145,16 +165,24 @@ export function ScheduleFormModal({
         ) : (
           <form aria-busy={isSubmitting} onSubmit={(event) => { event.preventDefault(); void submit(); }}>
             <div className="lesson-form-grid">
+              <div className="lesson-form-full calendar-create-tabs" role="group" aria-label="Тип расписания">
+                <button type="button" className={draft.targetType === "student" ? "active" : ""} onClick={() => selectTargetType("student")} disabled={isSubmitting || !students.length}>Ученик</button>
+                <button type="button" className={draft.targetType === "group" ? "active" : ""} onClick={() => selectTargetType("group")} disabled={isSubmitting || !groups.length}>Группа</button>
+              </div>
+              {draft.targetType === "student" ? (
               <label className="lesson-form-full">
                 <span>Ученик</span>
-                <select value={draft.studentId} onChange={(event) => selectStudent(event.target.value)} required disabled={isSubmitting || !students.length} autoFocus>
+                <select value={draft.studentId ?? ""} onChange={(event) => selectStudent(event.target.value)} required disabled={isSubmitting || !students.length} autoFocus>
                   {!students.length && <option value="">Нет активных учеников</option>}
                   {students.map((item) => <option value={item.id} key={item.id}>{item.firstName} {item.lastName}</option>)}
                 </select>
               </label>
+              ) : (
+                <label className="lesson-form-full"><span>Группа</span><select value={draft.groupId ?? ""} onChange={(event) => selectGroup(event.target.value)} required disabled={isSubmitting || !groups.length} autoFocus>{!groups.length && <option value="">Нет активных групп</option>}{groups.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label>
+              )}
               <label><span>День недели</span><select value={draft.weekday} onChange={(event) => update("weekday", Number(event.target.value))} disabled={isSubmitting}>{weekdays.map((day) => <option value={day.value} key={day.value}>{day.label}</option>)}</select></label>
               <label><span>Время начала</span><input type="time" value={draft.startTime} onChange={(event) => update("startTime", event.target.value)} required disabled={isSubmitting} /></label>
-              <label><span>Стоимость</span><div className="price-input-wrap"><input type="number" min="0" value={draft.price} onChange={(event) => update("price", Number(event.target.value))} required disabled={isSubmitting} /><i>₽</i></div></label>
+              <label><span>Стоимость</span><div className="price-input-wrap"><input type="number" min="0" step="1" value={draft.price} onChange={(event) => update("price", Number(event.target.value))} required disabled={isSubmitting} /><i>₽</i></div></label>
               <label><span>Время окончания</span><input type="time" value={draft.endTime} onChange={(event) => update("endTime", event.target.value)} required disabled={isSubmitting} /></label>
               <div className="schedule-duration-preview"><span>Продолжительность</span><strong>{draft.duration > 0 ? formatDuration(draft.duration) : "Укажите корректное время"}</strong></div>
               <label><span>Дата начала</span><input type="date" value={draft.startDate} onChange={(event) => update("startDate", event.target.value)} required disabled={isSubmitting} /></label>
@@ -171,7 +199,7 @@ export function ScheduleFormModal({
             </fieldset>}
 
             {(validationError || error) && <p className="lesson-form-error" role="alert">{validationError || error}</p>}
-            <div className="lesson-modal-footer"><div><Button type="button" variant="secondary" onClick={() => series ? setEditing(false) : onClose()} disabled={isSubmitting}>Отмена</Button><Button type="submit" disabled={isSubmitting || !students.length}>{isSubmitting ? "Сохранение…" : series ? "Сохранить" : "Создать"}</Button></div></div>
+            <div className="lesson-modal-footer"><div><Button type="button" variant="secondary" onClick={() => series ? setEditing(false) : onClose()} disabled={isSubmitting}>Отмена</Button><Button type="submit" disabled={isSubmitting || (draft.targetType === "student" ? !students.length : !groups.length)}>{isSubmitting ? "Сохранение…" : series ? "Сохранить" : "Создать"}</Button></div></div>
           </form>
         )}
       </section>
@@ -190,15 +218,18 @@ const weekdays = [
   { value: 7, label: "Воскресенье" },
 ];
 
-function createInitialDraft(student: Student | undefined, startDate: string, weekday: number): CreateLessonSeriesInput {
-  const duration = student?.lessonDuration ?? 60;
+function createInitialDraft(student: Student | undefined, group: StudentGroup | undefined, startDate: string, weekday: number): CreateLessonSeriesInput {
+  const duration = student?.lessonDuration ?? group?.lessonDuration ?? 60;
+  const targetType = student ? "student" : "group";
   return {
-    studentId: student?.id ?? "",
+    targetType,
+    studentId: student?.id ?? null,
+    groupId: student ? null : group?.id ?? null,
     weekday,
     startTime: "10:00",
     endTime: formatLessonEnd("10:00", duration),
     duration,
-    price: student?.lessonPrice ?? 0,
+    price: student?.lessonPrice ?? group?.lessonPrice ?? 0,
     startDate,
     endDate: null,
     isActive: true,
@@ -208,7 +239,9 @@ function createInitialDraft(student: Student | undefined, startDate: string, wee
 function toDraft(series: LessonSeries): CreateLessonSeriesInput {
   const endTime = series.endTime ?? formatLessonEnd(series.startTime, series.duration);
   return {
+    targetType: series.targetType,
     studentId: series.studentId,
+    groupId: series.groupId,
     weekday: series.weekday,
     startTime: series.startTime,
     endTime,
@@ -220,8 +253,9 @@ function toDraft(series: LessonSeries): CreateLessonSeriesInput {
   };
 }
 
-function validateDraft(draft: CreateLessonSeriesInput, students: Student[]): string | null {
-  if (!students.some((student) => student.id === draft.studentId)) return "Выберите ученика.";
+function validateDraft(draft: CreateLessonSeriesInput, students: Student[], groups: StudentGroup[]): string | null {
+  if (draft.targetType === "student" && !students.some((student) => student.id === draft.studentId)) return "Выберите ученика.";
+  if (draft.targetType === "group" && !groups.some((group) => group.id === draft.groupId)) return "Выберите группу.";
   if (draft.weekday < 1 || draft.weekday > 7) return "Выберите день недели.";
   if (!draft.startTime) return "Укажите время начала.";
   if (!draft.endTime) return "Укажите время окончания.";

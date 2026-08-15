@@ -5,7 +5,6 @@ import type {
   UpdateLessonInput,
 } from "../../src/types/lesson";
 import { createClient } from "./client";
-import { CURRENT_TUTOR_ID } from "./students";
 
 const lessonColumns = "id,tutor_id,student_id,group_id,lesson_series_id,series_occurrence_date,start_at,end_at,price,status,notes,created_at" as const;
 
@@ -35,13 +34,30 @@ type LessonUpdatePayload = {
   notes?: string | null;
 };
 
-export async function getLessons(): Promise<Lesson[]> {
+export async function getLessons(fromDate?: string, toDate?: string): Promise<Lesson[]> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("lessons")
     .select(lessonColumns)
-    .eq("tutor_id", CURRENT_TUTOR_ID)
     .order("start_at", { ascending: true });
+  if (fromDate) query = query.gte("start_at", normalizeBoundary(fromDate));
+  if (toDate) query = query.lt("start_at", normalizeBoundary(toDate));
+  const { data, error } = await query;
+
+  if (error) throw error;
+  return (data as LessonRow[]).map(toLesson);
+}
+
+export async function getCompletedLessons(fromDate?: string, toDate?: string): Promise<Lesson[]> {
+  const supabase = createClient();
+  let query = supabase
+    .from("lessons")
+    .select(lessonColumns)
+    .eq("status", "completed")
+    .order("start_at", { ascending: true });
+  if (fromDate) query = query.gte("start_at", normalizeBoundary(fromDate));
+  if (toDate) query = query.lt("start_at", normalizeBoundary(toDate));
+  const { data, error } = await query;
 
   if (error) throw error;
   return (data as LessonRow[]).map(toLesson);
@@ -52,7 +68,6 @@ export async function getStudentLessons(studentId: string): Promise<Lesson[]> {
   const { data, error } = await supabase
     .from("lessons")
     .select(lessonColumns)
-    .eq("tutor_id", CURRENT_TUTOR_ID)
     .eq("student_id", studentId)
     .order("start_at", { ascending: true });
 
@@ -65,7 +80,6 @@ export async function createLesson(input: CreateLessonInput): Promise<Lesson> {
   const { data, error } = await supabase
     .from("lessons")
     .insert({
-      tutor_id: CURRENT_TUTOR_ID,
       student_id: input.studentId ?? null,
       group_id: input.groupId ?? null,
       lesson_series_id: input.lessonSeriesId ?? null,
@@ -91,7 +105,6 @@ export async function updateLesson(
     .from("lessons")
     .update(toUpdatePayload(input))
     .eq("id", lessonId)
-    .eq("tutor_id", CURRENT_TUTOR_ID)
     .select(lessonColumns)
     .single();
 
@@ -107,15 +120,24 @@ export async function restoreLesson(lessonId: string): Promise<Lesson> {
   return updateLesson(lessonId, { status: "scheduled" });
 }
 
+export async function markLessonNoShow(lessonId: string, charge: boolean): Promise<Lesson> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("mark_lesson_no_show", { p_lesson_id: lessonId, p_charge: charge });
+  if (error) throw error;
+  return toLesson(data as LessonRow);
+}
+
 export async function deleteLesson(lessonId: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("lessons")
     .delete()
     .eq("id", lessonId)
-    .eq("tutor_id", CURRENT_TUTOR_ID);
+    .select("id")
+    .single();
 
   if (error) throw error;
+  if (data.id !== lessonId) throw new Error("Supabase did not delete the lesson");
 }
 
 function toUpdatePayload(input: UpdateLessonInput): LessonUpdatePayload {
@@ -153,4 +175,8 @@ function toLesson(row: LessonRow): Lesson {
 function emptyToNull(value?: string | null): string | null {
   const normalized = value?.trim() ?? "";
   return normalized || null;
+}
+
+function normalizeBoundary(value: string): string {
+  return value.includes("T") ? value : `${value}T00:00:00Z`;
 }

@@ -1,13 +1,13 @@
 import type { CreateLessonSeriesInput, LessonSeries } from "../../src/types/lesson-series";
 import { createClient } from "./client";
-import { CURRENT_TUTOR_ID } from "./students";
 
-const lessonSeriesColumns = "id,tutor_id,student_id,weekday,start_time,end_time,duration,price,start_date,end_date,is_active,created_at" as const;
+const lessonSeriesColumns = "id,tutor_id,student_id,group_id,weekday,start_time,end_time,duration,price,start_date,end_date,is_active,created_at" as const;
 
 type LessonSeriesRow = {
   id: string;
   tutor_id: string;
-  student_id: string;
+  student_id: string | null;
+  group_id: string | null;
   weekday: number;
   start_time: string;
   end_time: string | null;
@@ -24,7 +24,7 @@ export async function getLessonSeries(): Promise<LessonSeries[]> {
   const { data, error } = await supabase
     .from("lesson_series")
     .select(lessonSeriesColumns)
-    .eq("tutor_id", CURRENT_TUTOR_ID)
+    .is("deleted_at", null)
     .order("weekday", { ascending: true })
     .order("start_time", { ascending: true });
 
@@ -37,9 +37,8 @@ export async function createLessonSeries(input: CreateLessonSeriesInput): Promis
   const { data, error } = await supabase
     .from("lesson_series")
     .insert({
-      tutor_id: CURRENT_TUTOR_ID,
-      student_id: input.studentId,
-      group_id: null,
+      student_id: input.targetType === "student" ? input.studentId : null,
+      group_id: input.targetType === "group" ? input.groupId : null,
       weekday: input.weekday,
       start_time: input.startTime,
       end_time: input.endTime,
@@ -61,8 +60,8 @@ export async function updateLessonSeries(seriesId: string, input: CreateLessonSe
   const { data, error } = await supabase
     .from("lesson_series")
     .update({
-      student_id: input.studentId,
-      group_id: null,
+      student_id: input.targetType === "student" ? input.studentId : null,
+      group_id: input.targetType === "group" ? input.groupId : null,
       weekday: input.weekday,
       start_time: input.startTime,
       end_time: input.endTime,
@@ -73,7 +72,6 @@ export async function updateLessonSeries(seriesId: string, input: CreateLessonSe
       is_active: input.isActive,
     })
     .eq("id", seriesId)
-    .eq("tutor_id", CURRENT_TUTOR_ID)
     .select(lessonSeriesColumns)
     .single();
 
@@ -87,7 +85,6 @@ export async function setLessonSeriesActive(seriesId: string, isActive: boolean)
     .from("lesson_series")
     .update({ is_active: isActive })
     .eq("id", seriesId)
-    .eq("tutor_id", CURRENT_TUTOR_ID)
     .select(lessonSeriesColumns)
     .single();
 
@@ -105,15 +102,27 @@ export async function syncLessonSeriesFuture(seriesId: string, fromDate: string)
   if (error) throw error;
 }
 
+export async function ensureLessonSeriesRange(fromDate: string, toDate: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("generate_active_lesson_series_range", {
+    p_from_date: fromDate,
+    p_to_date: toDate,
+  });
+  if (error) throw error;
+}
+
 export async function deleteLessonSeries(seriesId: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("lesson_series")
-    .delete()
+    .update({ is_active: false, deleted_at: new Date().toISOString() })
     .eq("id", seriesId)
-    .eq("tutor_id", CURRENT_TUTOR_ID);
+    .is("deleted_at", null)
+    .select("id")
+    .single();
 
   if (error) throw error;
+  if (data.id !== seriesId) throw new Error("Supabase did not delete the schedule template");
 }
 
 function toLessonSeries(row: LessonSeriesRow): LessonSeries {
@@ -122,7 +131,9 @@ function toLessonSeries(row: LessonSeriesRow): LessonSeries {
   return {
     id: row.id,
     tutorId: row.tutor_id,
+    targetType: row.group_id ? "group" : "student",
     studentId: row.student_id,
+    groupId: row.group_id,
     weekday: row.weekday,
     startTime,
     endTime,

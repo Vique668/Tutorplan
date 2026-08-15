@@ -1,7 +1,9 @@
 export type LessonSeries = {
   id: string;
   tutorId: string;
-  studentId: string;
+  targetType: "student" | "group";
+  studentId: string | null;
+  groupId: string | null;
   weekday: number;
   startTime: string;
   endTime: string | null;
@@ -13,9 +15,7 @@ export type LessonSeries = {
   createdAt: string;
 };
 
-export type CreateLessonSeriesInput = Omit<LessonSeries, "id" | "tutorId" | "createdAt" | "endTime"> & {
-  endTime: string;
-};
+export type CreateLessonSeriesInput = Omit<LessonSeries, "id" | "tutorId" | "createdAt"> & { endTime: string };
 
 export type LessonSeriesUpdateScope = "template" | "all_future" | "from_date";
 

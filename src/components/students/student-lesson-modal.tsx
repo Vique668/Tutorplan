@@ -28,8 +28,6 @@ const lessonStatuses: { value: LessonStatus; label: string }[] = [
   { value: "scheduled", label: "Запланировано" },
   { value: "completed", label: "Проведено" },
   { value: "cancelled", label: "Отменено" },
-  { value: "rescheduled", label: "Перенесено" },
-  { value: "no_show", label: "Ученик не пришёл" },
 ];
 
 export function StudentLessonModal({

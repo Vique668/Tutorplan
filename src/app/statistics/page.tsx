@@ -1,50 +1,115 @@
-import { Award, ChevronDown, Clock3, Flame, Target, TrendingUp, Users } from "lucide-react";
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarRange, CircleAlert, Clock3, LoaderCircle, Target, TrendingUp, Users, WalletCards } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
+import type { Lesson } from "@/types/lesson";
+import { getZonedParts, zonedLocalToIso } from "@/lib/date-time";
+import { getCompletedLessons } from "../../../lib/supabase/lessons";
+import { getTutorTimezone } from "../../../lib/supabase/settings";
 
-const activity = [45, 58, 52, 72, 61, 78, 84, 70, 88, 91, 82, 94];
-const subjects = [
-  { name: "Математика", count: 29, percent: 52, color: "orange" },
-  { name: "Физика", count: 17, percent: 31, color: "purple" },
-  { name: "Геометрия", count: 9, percent: 17, color: "green" },
-];
+type PeriodType = "month" | "year";
 
 export default function StatisticsPage() {
+  const [periodType, setPeriodType] = useState<PeriodType>("month");
+  const [period, setPeriod] = useState(() => toMonthKey(new Date()));
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [timezone, setTimezone] = useState("Europe/Moscow");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const range = useMemo(() => getRange(periodType, period), [periodType, period]);
+
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const loadedTimezone = await getTutorTimezone();
+      const completedLessons = await getCompletedLessons(
+        zonedLocalToIso(range.from, "00:00", loadedTimezone),
+        zonedLocalToIso(range.to, "00:00", loadedTimezone),
+      );
+      setLessons(completedLessons);
+      setTimezone(loadedTimezone);
+    } catch (loadError) {
+      setError(getErrorMessage(loadError));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [range.from, range.to]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const teachingMinutes = lessons.reduce((total, lesson) => total + durationMinutes(lesson), 0);
+  const income = lessons.reduce((total, lesson) => total + lesson.price, 0);
+  const averagePrice = lessons.length ? Math.round(income / lessons.length) : 0;
+  const participants = new Set(lessons.map((lesson) => lesson.studentId ? `student:${lesson.studentId}` : `group:${lesson.groupId}`)).size;
+  const activity = buildActivity(lessons, range.from, range.to, periodType, timezone);
+  const maxActivity = Math.max(...activity.map((item) => item.minutes), 1);
+
+  function switchPeriodType(next: PeriodType) {
+    setPeriodType(next);
+    setPeriod(next === "month" ? toMonthKey(new Date()) : String(new Date().getFullYear()));
+  }
+
   return (
     <div className="page-stack">
-      <PageHeader title="Статистика" description="Результаты работы и динамика занятий" actions={<Button variant="secondary" icon={<ChevronDown size={18} />}>Август 2026</Button>} />
-      <div className="stats-grid">
-        <StatCard label="Проведено уроков" value="55" note="↑ 8 к прошлому месяцу" icon={<Target size={21} />} />
-        <StatCard label="Учебных часов" value="62,5" note="В среднем 15,6 в неделю" icon={<Clock3 size={21} />} tone="blue" />
-        <StatCard label="Посещаемость" value="94%" note="2 отмены за месяц" icon={<Users size={21} />} tone="green" />
-        <StatCard label="Серия без отмен" value="12 дней" note="Личный рекорд — 18" icon={<Flame size={21} />} tone="purple" />
-      </div>
-      <div className="statistics-grid">
-        <Card className="activity-card">
-          <div className="card-toolbar"><div><h2>Активность занятий</h2><p>Количество проведённых часов по неделям</p></div><Badge tone="green"><TrendingUp size={14} /> +16%</Badge></div>
-          <div className="line-chart">
-            <div className="chart-y"><span>20 ч</span><span>15 ч</span><span>10 ч</span><span>5 ч</span><span>0</span></div>
-            <div className="line-area">
-              <svg viewBox="0 0 660 220" preserveAspectRatio="none" aria-label="Рост числа занятий">
-                <defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ff9f43" stopOpacity=".28" /><stop offset="1" stopColor="#ff9f43" stopOpacity="0" /></linearGradient></defs>
-                <path className="area-fill" d={`M0,${220-activity[0]*2} ${activity.map((p,i)=>`L${i*60},${220-p*2}`).join(" ")} L660,220 L0,220 Z`} />
-                <path className="chart-line" d={`M0,${220-activity[0]*2} ${activity.map((p,i)=>`L${i*60},${220-p*2}`).join(" ")}`} />
-                {activity.map((p,i)=><circle key={i} cx={i*60} cy={220-p*2} r={i===11?6:3.5} />)}
-              </svg>
-              <div className="chart-x"><span>1 нед</span><span>2 нед</span><span>3 нед</span><span>4 нед</span></div>
-            </div>
-          </div>
-        </Card>
-        <Card className="subjects-card">
-          <div className="card-toolbar"><div><h2>По предметам</h2><p>55 уроков в августе</p></div></div>
-          <div className="donut-wrap"><div className="donut-chart"><div><strong>55</strong><span>уроков</span></div></div></div>
-          <div className="subject-list">{subjects.map((subject)=><div key={subject.name}><span className={`subject-dot subject-${subject.color}`} /><strong>{subject.name}</strong><span>{subject.count}</span><small>{subject.percent}%</small></div>)}</div>
-        </Card>
-      </div>
-      <Card className="achievement-card"><span className="achievement-icon"><Award size={24} /></span><div><Badge tone="orange">НОВОЕ ДОСТИЖЕНИЕ</Badge><h3>50 занятий за месяц!</h3><p>Отличный темп — это на 17% больше вашего среднего результата.</p></div><Button variant="secondary">Посмотреть достижения</Button></Card>
+      <PageHeader title="Статистика" description="Показатели только по проведённым урокам" actions={<div className="statistics-period-controls"><div className="segmented"><button className={periodType === "month" ? "active" : ""} onClick={() => switchPeriodType("month")}>Месяц</button><button className={periodType === "year" ? "active" : ""} onClick={() => switchPeriodType("year")}>Год</button></div><input type={periodType === "month" ? "month" : "number"} min={2020} max={2100} value={period} onChange={(event) => setPeriod(event.target.value)} aria-label="Период статистики" /></div>} />
+      {isLoading && <Card><div className="students-empty-state"><LoaderCircle className="spin" size={28} /><h2>Считаем статистику</h2></div></Card>}
+      {error && <Card><div className="students-empty-state" role="alert"><CircleAlert size={28} /><h2>Не удалось загрузить статистику</h2><p>{error}</p></div></Card>}
+      {!isLoading && !error && <>
+        <div className="stats-grid">
+          <StatCard label="Проведено уроков" value={String(lessons.length)} note="Статус: проведено" icon={<Target size={21} />} />
+          <StatCard label="Учебных часов" value={formatHours(teachingMinutes)} note="Только проведённые уроки" icon={<Clock3 size={21} />} tone="blue" />
+          <StatCard label="Доход" value={`${income.toLocaleString("ru-RU")} ₽`} note="По стоимости проведённых уроков" icon={<WalletCards size={21} />} tone="green" />
+          <StatCard label="Средняя стоимость" value={`${averagePrice.toLocaleString("ru-RU")} ₽`} note="За проведённый урок" icon={<TrendingUp size={21} />} tone="purple" />
+        </div>
+        <div className="statistics-grid">
+          <Card className="activity-card"><div className="card-toolbar"><div><h2>Учебная активность</h2><p>Проведённые часы по {periodType === "month" ? "неделям" : "месяцам"}</p></div><Badge tone="green"><TrendingUp size={14} /> {formatHours(teachingMinutes)}</Badge></div><div className="statistics-real-bars">{activity.map((item) => <div key={item.label}><div><span style={{ height: `${Math.max(2, item.minutes / maxActivity * 100)}%` }} /></div><small>{item.label}</small><strong>{formatHours(item.minutes)}</strong></div>)}</div></Card>
+          <Card className="subjects-card"><div className="card-toolbar"><div><h2>Итоги периода</h2><p>Только записи со статусом «Проведено»</p></div></div><div className="statistics-summary-list"><div><WalletCards size={18} /><span>Доход по урокам</span><strong>{income.toLocaleString("ru-RU")} ₽</strong></div><div><CalendarRange size={18} /><span>Проведённых уроков</span><strong>{lessons.length}</strong></div><div><Users size={18} /><span>Учеников и групп</span><strong>{participants}</strong></div><div><Target size={18} /><span>Средняя стоимость урока</span><strong>{averagePrice.toLocaleString("ru-RU")} ₽</strong></div></div></Card>
+        </div>
+        {lessons.length === 0 && <Card><div className="students-empty-state"><CalendarRange size={30} /><h2>За выбранный период проведённых уроков нет</h2><p>Статистика появится после перевода занятия в статус «Проведено».</p></div></Card>}
+      </>}
     </div>
   );
 }
+
+function getRange(type: PeriodType, value: string) {
+  if (type === "year") return { from: `${value}-01-01`, to: `${Number(value) + 1}-01-01` };
+  const [year, month] = value.split("-").map(Number);
+  return { from: `${value}-01`, to: toDateKey(new Date(year, month, 1)) };
+}
+
+function durationMinutes(lesson: Lesson) {
+  return Math.max(0, Math.round((new Date(lesson.endAt).getTime() - new Date(lesson.startAt).getTime()) / 60_000));
+}
+
+function buildActivity(lessons: Lesson[], from: string, to: string, type: PeriodType, timezone: string) {
+  const start = new Date(`${from}T00:00:00`);
+  const end = new Date(`${to}T00:00:00`);
+  const buckets: { label: string; from: Date; to: Date; minutes: number }[] = [];
+  let cursor = new Date(start);
+  while (cursor < end) {
+    const next = type === "year" ? new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1) : new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 7);
+    buckets.push({ label: type === "year" ? new Intl.DateTimeFormat("ru-RU", { month: "short" }).format(cursor).replace(".", "") : `${cursor.getDate()}`, from: new Date(cursor), to: next < end ? next : end, minutes: 0 });
+    cursor = next;
+  }
+  lessons.forEach((lesson) => {
+    const parts = getZonedParts(new Date(lesson.startAt), timezone);
+    const date = new Date(parts.year, parts.month - 1, parts.day);
+    const bucket = buckets.find((item) => date >= item.from && date < item.to);
+    if (bucket) bucket.minutes += durationMinutes(lesson);
+  });
+  return buckets;
+}
+
+function formatHours(minutes: number) {
+  const hours = minutes / 60;
+  return `${Number.isInteger(hours) ? hours : hours.toFixed(1).replace(".", ",")} ч`;
+}
+
+function toMonthKey(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`; }
+function toDateKey(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
+function getErrorMessage(error: unknown) { if (error instanceof Error) return error.message; if (error && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message; return "Неизвестная ошибка Supabase"; }

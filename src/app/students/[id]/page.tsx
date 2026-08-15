@@ -18,6 +18,7 @@ import {
   Phone,
   Plus,
   RotateCcw,
+  Trash2,
   UserRound,
   WalletCards,
 } from "lucide-react";
@@ -25,6 +26,8 @@ import { StudentLessonModal, type StudentLessonDraft } from "@/components/studen
 import { StudentModal } from "@/components/students/student-modal";
 import type { Student, StudentDraft } from "@/components/students/student-types";
 import type { Lesson } from "@/types/lesson";
+import type { StudentFinanceSummary } from "@/types/finance";
+import { zonedLocalToIso } from "@/lib/date-time";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +35,7 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   archiveStudent,
+  deleteStudent,
   getStudent,
   updateStudent,
 } from "../../../../lib/supabase/students";
@@ -39,6 +43,8 @@ import {
   createLesson,
   getStudentLessons,
 } from "../../../../lib/supabase/lessons";
+import { getStudentFinance } from "../../../../lib/supabase/finance";
+import { getTutorTimezone } from "../../../../lib/supabase/settings";
 
 export default function StudentDetailsPage() {
   const params = useParams();
@@ -46,11 +52,14 @@ export default function StudentDetailsPage() {
   const studentId = typeof params.id === "string" ? params.id : params.id?.[0] ?? "";
   const [student, setStudent] = useState<Student | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [finance, setFinance] = useState<StudentFinanceSummary | null>(null);
+  const [timezone, setTimezone] = useState("Europe/Moscow");
   const [lessonsReferenceTime, setLessonsReferenceTime] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isArchiving, setIsArchiving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -68,12 +77,16 @@ export default function StudentDetailsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [loadedStudent, loadedLessons] = await Promise.all([
+      const [loadedStudent, loadedLessons, loadedFinance, loadedTimezone] = await Promise.all([
         getStudent(studentId),
         getStudentLessons(studentId),
+        getStudentFinance(studentId),
+        getTutorTimezone(),
       ]);
       setStudent(loadedStudent);
       setLessons(loadedLessons);
+      setFinance(loadedFinance);
+      setTimezone(loadedTimezone);
       setLessonsReferenceTime(Date.now());
     } catch (loadError) {
       setError(getErrorMessage(loadError));
@@ -95,6 +108,9 @@ export default function StudentDetailsPage() {
       ))
       .sort((first, second) => new Date(first.startAt).getTime() - new Date(second.startAt).getTime());
   }, [lessons, lessonsReferenceTime]);
+  const lessonHistory = useMemo(() => lessons
+    .filter((lesson) => new Date(lesson.endAt).getTime() < lessonsReferenceTime || lesson.status === "completed" || lesson.status === "cancelled" || lesson.status === "no_show")
+    .sort((first, second) => new Date(second.startAt).getTime() - new Date(first.startAt).getTime()), [lessons, lessonsReferenceTime]);
 
   function openEdit() {
     setSubmitError(null);
@@ -123,6 +139,7 @@ export default function StudentDetailsPage() {
 
   async function changeArchiveStatus() {
     if (!student) return;
+    if (student.status === "active" && !window.confirm("Архивировать этого ученика?")) return;
 
     setIsArchiving(true);
     setActionError(null);
@@ -136,6 +153,21 @@ export default function StudentDetailsPage() {
     }
   }
 
+  async function removeStudent() {
+    if (!student || !window.confirm("Удалить ученика? Он исчезнет из списков, а история занятий сохранится.")) return;
+
+    setIsDeleting(true);
+    setActionError(null);
+    try {
+      await deleteStudent(student.id);
+      router.push("/students");
+      router.refresh();
+    } catch (deleteError) {
+      setActionError(getErrorMessage(deleteError));
+      setIsDeleting(false);
+    }
+  }
+
   async function saveLesson(draft: StudentLessonDraft) {
     if (!student) return;
 
@@ -143,7 +175,7 @@ export default function StudentDetailsPage() {
     setLessonError(null);
     setActionError(null);
     try {
-      const startAt = new Date(`${draft.date}T${draft.startTime}:00`);
+      const startAt = new Date(zonedLocalToIso(draft.date, draft.startTime, timezone));
       const endAt = new Date(startAt.getTime() + draft.duration * 60_000);
       const createdLesson = await createLesson({
         studentId: student.id,
@@ -229,6 +261,15 @@ export default function StudentDetailsPage() {
             >
               {isArchiving ? "Сохранение…" : student.status === "active" ? "Архивировать" : "Восстановить"}
             </Button>
+            <Button
+              variant="ghost"
+              className="delete-lesson-button"
+              icon={<Trash2 size={16} />}
+              onClick={() => void removeStudent()}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Удаление…" : "Удалить"}
+            </Button>
           </>
         )}
       />
@@ -252,6 +293,9 @@ export default function StudentDetailsPage() {
             <div className="student-details-fields">
               <div><span>Имя</span><strong>{student.firstName}</strong></div>
               <div><span>Фамилия</span><strong>{student.lastName}</strong></div>
+              <div><span>Дата рождения</span><strong>{student.dateOfBirth ? formatBirthDate(student.dateOfBirth) : "Не указана"}</strong></div>
+              <div><span>Возраст</span><strong>{student.dateOfBirth ? formatAge(student.dateOfBirth) : "Не указан"}</strong></div>
+              <div><span>Адрес</span><strong>{student.address || "Не указан"}</strong></div>
             </div>
           </section>
 
@@ -308,17 +352,13 @@ export default function StudentDetailsPage() {
             title="Занятия"
             text={lessons.length ? `Всего занятий: ${lessons.length}` : "Занятий пока нет."}
           />
-          <UpcomingLessons lessons={upcomingLessons} />
+          <UpcomingLessons lessons={upcomingLessons} timezone={timezone} />
           <StudentPlaceholder
             icon={<History size={20} />}
             title="История занятий"
-            text="История появится после проведённых уроков."
+            text={lessonHistory.length ? `Завершённых и прошедших занятий: ${lessonHistory.length}` : "История появится после проведённых уроков."}
           />
-          <StudentPlaceholder
-            icon={<CircleDollarSign size={20} />}
-            title="Финансы"
-            text="Финансовые данные пока не подключены."
-          />
+          <StudentFinance finance={finance} />
         </div>
       </div>
 
@@ -362,7 +402,7 @@ function StudentPlaceholder({
   );
 }
 
-function UpcomingLessons({ lessons }: { lessons: Lesson[] }) {
+function UpcomingLessons({ lessons, timezone }: { lessons: Lesson[]; timezone: string }) {
   return (
     <Card className="student-details-placeholder student-upcoming-lessons-card">
       <span><CalendarDays size={20} /></span>
@@ -372,8 +412,8 @@ function UpcomingLessons({ lessons }: { lessons: Lesson[] }) {
           <div className="student-upcoming-lessons-list">
             {lessons.map((lesson) => (
               <div className={`student-upcoming-lesson lesson-status-${lesson.status}`} key={lesson.id}>
-                <strong>{formatLessonDate(lesson.startAt)}</strong>
-                <span>{formatLessonTime(lesson.startAt)}–{formatLessonTime(lesson.endAt)}</span>
+                <strong>{formatLessonDate(lesson.startAt, timezone)}</strong>
+                <span>{formatLessonTime(lesson.startAt, timezone)}–{formatLessonTime(lesson.endAt, timezone)}</span>
                 <small>{lessonStatusLabel(lesson.status)} · {lesson.price.toLocaleString("ru-RU")} ₽</small>
               </div>
             ))}
@@ -384,6 +424,10 @@ function UpcomingLessons({ lessons }: { lessons: Lesson[] }) {
       </div>
     </Card>
   );
+}
+
+function StudentFinance({ finance }: { finance: StudentFinanceSummary | null }) {
+  return <Card className="student-details-placeholder"><span><CircleDollarSign size={20} /></span><div className="student-upcoming-lessons-content"><h2>Финансы</h2>{finance ? <><p>Баланс: <strong>{finance.balance.toLocaleString("ru-RU")} ₽</strong> · Не оплачено: <strong>{finance.unpaidAmount.toLocaleString("ru-RU")} ₽</strong></p>{finance.transactions.length ? <div className="student-upcoming-lessons-list">{finance.transactions.slice(0, 5).map((item) => <div className="student-upcoming-lesson" key={item.id}><strong>{formatLessonDate(`${item.transactionDate}T00:00:00`)}</strong><span>{item.type === "payment" ? "Оплата" : item.type === "lesson_charge" ? "Начисление за урок" : item.category || "Операция"}</span><small>{item.type === "payment" || item.type === "adjustment" ? "+" : "−"}{item.amount.toLocaleString("ru-RU")} ₽</small></div>)}</div> : <p>Операций пока нет.</p>}</> : <p>Финансовые данные загружаются.</p>}</div></Card>;
 }
 
 function toDraft(student: Student): StudentDraft {
@@ -414,19 +458,42 @@ function formatDuration(minutes: number): string {
   return `${minutes} мин`;
 }
 
-function formatLessonDate(value: string): string {
+function formatLessonDate(value: string, timeZone?: string): string {
   return new Intl.DateTimeFormat("ru-RU", {
     weekday: "short",
     day: "numeric",
     month: "long",
+    timeZone,
   }).format(new Date(value));
 }
 
-function formatLessonTime(value: string): string {
+function formatLessonTime(value: string, timeZone?: string): string {
   return new Intl.DateTimeFormat("ru-RU", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone,
   }).format(new Date(value));
+}
+
+function formatBirthDate(value: string): string {
+  return new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(`${value}T00:00:00`));
+}
+
+function formatAge(value: string): string {
+  const birth = new Date(`${value}T00:00:00`);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  if (today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) age -= 1;
+  return `${age} ${ageWord(age)}`;
+}
+
+function ageWord(age: number): string {
+  const lastTwo = age % 100;
+  const last = age % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return "лет";
+  if (last === 1) return "год";
+  if (last >= 2 && last <= 4) return "года";
+  return "лет";
 }
 
 function lessonStatusLabel(status: Lesson["status"]): string {

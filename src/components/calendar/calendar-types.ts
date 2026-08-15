@@ -12,12 +12,15 @@ export const lessonStatusLabels: Record<LessonStatus, string> = {
   no_show: "Ученик не пришёл",
 };
 
+export const primaryLessonStatuses = ["scheduled", "completed", "cancelled"] as const satisfies readonly LessonStatus[];
+
 export type LessonColor = "apricot" | "lavender" | "sage" | "sky" | "rose";
 
 export type CalendarLesson = {
   id: string;
   kind?: "lesson" | "other";
   studentId?: string;
+  groupId?: string;
   participant: string;
   date: string;
   startTime: string;

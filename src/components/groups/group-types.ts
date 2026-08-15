@@ -9,12 +9,15 @@ export type GroupLesson = {
 export type StudentGroup = {
   id: string;
   name: string;
+  subject: string | null;
   studentIds: string[];
   lessonPrice: number;
   lessonDuration: number;
   notes: string;
   status: GroupStatus;
   upcomingLessons: GroupLesson[];
+  lessonHistoryCount: number;
+  createdAt: string;
 };
 
-export type GroupDraft = Pick<StudentGroup, "name" | "studentIds" | "lessonPrice" | "lessonDuration" | "notes">;
+export type GroupDraft = Pick<StudentGroup, "name" | "subject" | "studentIds" | "lessonPrice" | "lessonDuration" | "notes">;

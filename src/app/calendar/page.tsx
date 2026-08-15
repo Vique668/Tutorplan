@@ -30,19 +30,22 @@ import {
 import { MonthCalendar } from "@/components/calendar/month-calendar";
 import { WeekCalendar } from "@/components/calendar/week-calendar";
 import type { Student } from "@/components/students/student-types";
+import type { StudentGroup } from "@/components/groups/group-types";
 import { Button } from "@/components/ui/button";
 import type { Lesson } from "@/types/lesson";
 import type { OtherEvent } from "@/types/other-event";
+import { getZonedParts, zonedDateKey, zonedLocalToIso } from "@/lib/date-time";
 import {
   cancelLesson,
   createLesson,
   deleteLesson,
   getLessons,
-  restoreLesson,
   updateLesson,
 } from "../../../lib/supabase/lessons";
 import { createOtherEvent, deleteOtherEvent, getOtherEvents, updateOtherEvent } from "../../../lib/supabase/other-events";
 import { getStudents } from "../../../lib/supabase/students";
+import { getGroups } from "../../../lib/supabase/groups";
+import { getTutorTimezone } from "../../../lib/supabase/settings";
 
 const views: { value: CalendarView; label: string }[] = [
   { value: "day", label: "День" },
@@ -61,6 +64,8 @@ export default function CalendarPage() {
   const [view, setView] = useState<CalendarView>("week");
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [students, setStudents] = useState<Student[]>([]);
+  const [groups, setGroups] = useState<StudentGroup[]>([]);
+  const [timezone, setTimezone] = useState("Europe/Moscow");
   const [lessons, setLessons] = useState<CalendarLesson[]>([]);
   const [otherEvents, setOtherEvents] = useState<OtherEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -81,20 +86,25 @@ export default function CalendarPage() {
     setLoadError(null);
 
     try {
-      const [loadedStudents, loadedLessons, loadedOtherEvents] = await Promise.all([
+      const range = getQueryRange(anchorDate, view);
+      const loadedTimezone = await getTutorTimezone();
+      const [loadedStudents, loadedGroups, loadedLessons, loadedOtherEvents] = await Promise.all([
         getStudents(),
-        getLessons(),
-        getOtherEvents(),
+        getGroups(),
+        getLessons(zonedLocalToIso(range.from, "00:00", loadedTimezone), zonedLocalToIso(range.to, "00:00", loadedTimezone)),
+        getOtherEvents(range.from, range.to),
       ]);
-      setStudents(loadedStudents.filter((student) => student.status === "active"));
-      setLessons(loadedLessons.map((lesson) => toCalendarLesson(lesson, loadedStudents)));
+      setStudents(loadedStudents);
+      setGroups(loadedGroups);
+      setTimezone(loadedTimezone);
+      setLessons(loadedLessons.map((lesson) => toCalendarLesson(lesson, loadedStudents, loadedGroups, loadedTimezone)));
       setOtherEvents(loadedOtherEvents);
     } catch (error) {
       setLoadError(getErrorMessage(error));
     } finally {
       if (showLoading) setIsLoading(false);
     }
-  }, []);
+  }, [anchorDate, view]);
 
   useEffect(() => {
     void loadCalendar();
@@ -143,14 +153,19 @@ export default function CalendarPage() {
   }
 
   async function saveLesson(draft: CalendarLessonCreateDraft) {
+    const endTime = minutesToTime(timeToMinutes(draft.startTime) + draft.duration);
+    if (!confirmCalendarCollision(draft.date, draft.startTime, endTime)) return;
     setIsSubmitting(true);
     setCreateError(null);
 
     try {
-      const startAt = new Date(`${draft.date}T${draft.startTime}:00`);
+      const startAt = new Date(zonedLocalToIso(draft.date, draft.startTime, timezone));
       const endAt = new Date(startAt.getTime() + draft.duration * 60_000);
+      const target = draft.targetType === "group"
+        ? { groupId: draft.groupId ?? "", studentId: null as null }
+        : { studentId: draft.studentId ?? "", groupId: null as null };
       const createdLesson = await createLesson({
-        studentId: draft.studentId,
+        ...target,
         startAt: startAt.toISOString(),
         endAt: endAt.toISOString(),
         price: draft.price,
@@ -158,7 +173,7 @@ export default function CalendarPage() {
         notes: draft.notes,
       });
 
-      setLessons((current) => [...current, toCalendarLesson(createdLesson, students)]);
+      setLessons((current) => [...current, toCalendarLesson(createdLesson, students, groups, timezone)]);
       setCreateModal(null);
       await loadCalendar(false);
     } catch (error) {
@@ -169,6 +184,7 @@ export default function CalendarPage() {
   }
 
   async function saveOtherEvent(draft: CalendarOtherEventCreateDraft) {
+    if (!confirmCalendarCollision(draft.date, draft.startTime, draft.endTime)) return;
     setIsSubmitting(true);
     setCreateError(null);
 
@@ -204,6 +220,7 @@ export default function CalendarPage() {
 
   async function saveSelectedOtherEvent(draft: CalendarOtherEventDraft) {
     if (!selectedOtherEvent) return;
+    if (!confirmCalendarCollision(draft.date, draft.startTime, draft.endTime, selectedOtherEvent.id, "other")) return;
     setIsOtherEventMutating(true);
     setOtherEventActionError(null);
     try {
@@ -242,22 +259,23 @@ export default function CalendarPage() {
 
   async function saveSelectedLesson(draft: CalendarLessonEditDraft) {
     if (!selectedLesson) return;
+    if (!confirmCalendarCollision(draft.date, draft.startTime, draft.endTime, selectedLesson.id, "lesson")) return;
 
     setIsLessonMutating(true);
     setLessonActionError(null);
     try {
-      const startAt = new Date(`${draft.date}T${draft.startTime}:00`);
-      const endAt = new Date(startAt.getTime() + draft.duration * 60_000);
+      const startAt = new Date(zonedLocalToIso(draft.date, draft.startTime, timezone));
+      const endAt = new Date(zonedLocalToIso(draft.date, draft.endTime, timezone));
       const updatedLesson = await updateLesson(selectedLesson.id, {
-        studentId: draft.studentId,
-        groupId: null,
+        studentId: draft.targetType === "student" ? draft.studentId : null,
+        groupId: draft.targetType === "group" ? draft.groupId : null,
         startAt: startAt.toISOString(),
         endAt: endAt.toISOString(),
         price: draft.price,
         status: draft.status,
         notes: draft.notes,
       });
-      const calendarLesson = toCalendarLesson(updatedLesson, students);
+      const calendarLesson = toCalendarLesson(updatedLesson, students, groups, timezone);
       setLessons((current) => current.map((lesson) => lesson.id === calendarLesson.id ? calendarLesson : lesson));
       setSelectedLesson(calendarLesson);
       await loadCalendar(false);
@@ -275,7 +293,7 @@ export default function CalendarPage() {
     setLessonActionError(null);
     try {
       const cancelledLesson = await cancelLesson(selectedLesson.id);
-      const calendarLesson = toCalendarLesson(cancelledLesson, students);
+      const calendarLesson = toCalendarLesson(cancelledLesson, students, groups, timezone);
       setLessons((current) => current.map((lesson) => lesson.id === calendarLesson.id ? calendarLesson : lesson));
       setSelectedLesson(calendarLesson);
       await loadCalendar(false);
@@ -286,14 +304,13 @@ export default function CalendarPage() {
     }
   }
 
-  async function restoreSelectedLesson() {
+  async function changeSelectedLessonStatus(status: Lesson["status"]) {
     if (!selectedLesson) return;
-
     setIsLessonMutating(true);
     setLessonActionError(null);
     try {
-      const restoredLesson = await restoreLesson(selectedLesson.id);
-      const calendarLesson = toCalendarLesson(restoredLesson, students);
+      const updated = await updateLesson(selectedLesson.id, { status });
+      const calendarLesson = toCalendarLesson(updated, students, groups, timezone);
       setLessons((current) => current.map((lesson) => lesson.id === calendarLesson.id ? calendarLesson : lesson));
       setSelectedLesson(calendarLesson);
       await loadCalendar(false);
@@ -321,6 +338,22 @@ export default function CalendarPage() {
     }
   }
 
+  function confirmCalendarCollision(date: string, startTime: string, endTime: string, excludedId?: string, excludedKind?: "lesson" | "other") {
+    const start = timeToMinutes(startTime);
+    const end = timeToMinutes(endTime);
+    const lessonConflict = lessons.find((lesson) => lesson.id !== (excludedKind === "lesson" ? excludedId : undefined)
+      && lesson.date === date && lesson.status !== "cancelled"
+      && start < timeToMinutes(lesson.startTime) + lesson.duration
+      && end > timeToMinutes(lesson.startTime));
+    const otherConflict = otherEvents.find((event) => event.id !== (excludedKind === "other" ? excludedId : undefined)
+      && event.eventDate === date
+      && start < timeToMinutes(event.endTime)
+      && end > timeToMinutes(event.startTime));
+    const conflictName = lessonConflict?.participant ?? otherConflict?.title;
+    if (!conflictName) return true;
+    return window.confirm(`В это время уже есть событие «${conflictName}». Всё равно сохранить?`);
+  }
+
   return (
     <div className="calendar-page">
       <div className="calendar-page-header">
@@ -335,7 +368,7 @@ export default function CalendarPage() {
         <div className="week-toolbar">
           <div className="week-navigation">
             <button className="calendar-nav-button" aria-label="Предыдущий период" onClick={() => movePeriod(-1)}><ChevronLeft size={18} /></button>
-            <button className="today-button" onClick={() => setAnchorDate(new Date())}>Сегодня</button>
+            <button className="today-button" onClick={() => setAnchorDate(dateKeyToDate(zonedDateKey(new Date(), timezone)))}>Сегодня</button>
             <button className="calendar-nav-button" aria-label="Следующий период" onClick={() => movePeriod(1)}><ChevronRight size={18} /></button>
             <div className="date-range" aria-live="polite"><strong>{rangeLabel.main}</strong><span>{rangeLabel.year}</span></div>
           </div>
@@ -372,7 +405,8 @@ export default function CalendarPage() {
 
       {createModal && (
         <CalendarLessonCreateModal
-          students={students}
+          students={students.filter((student) => student.status === "active")}
+          groups={groups.filter((group) => group.status === "active")}
           initialDate={createModal.date}
           initialStartTime={createModal.startTime}
           isSubmitting={isSubmitting}
@@ -386,12 +420,13 @@ export default function CalendarPage() {
         <CalendarLessonDetailsModal
           lesson={selectedLesson}
           students={students}
+          groups={groups}
           isMutating={isLessonMutating}
           error={lessonActionError}
           onClose={() => { if (!isLessonMutating) setSelectedLesson(null); }}
           onUpdate={saveSelectedLesson}
           onCancelLesson={cancelSelectedLesson}
-          onRestoreLesson={restoreSelectedLesson}
+          onStatusChange={changeSelectedLessonStatus}
           onDelete={deleteSelectedLesson}
         />
       )}
@@ -409,27 +444,30 @@ export default function CalendarPage() {
   );
 }
 
-function toCalendarLesson(lesson: Lesson, students: Student[]): CalendarLesson {
+function toCalendarLesson(lesson: Lesson, students: Student[], groups: StudentGroup[], timezone: string): CalendarLesson {
   const student = students.find((item) => item.id === lesson.studentId);
+  const group = groups.find((item) => item.id === lesson.groupId);
   const start = new Date(lesson.startAt);
   const end = new Date(lesson.endAt);
+  const zonedStart = getZonedParts(start, timezone);
   const duration = Math.max(1, Math.round((end.getTime() - start.getTime()) / 60_000));
-  const studentKey = student?.id ?? lesson.studentId ?? lesson.id;
+  const studentKey = student?.id ?? group?.id ?? lesson.studentId ?? lesson.groupId ?? lesson.id;
 
   return {
     id: lesson.id,
     kind: "lesson",
     studentId: lesson.studentId ?? undefined,
-    participant: student ? `${student.firstName} ${student.lastName}` : "Ученик",
-    date: toDateKey(start),
-    startTime: `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`,
+    groupId: lesson.groupId ?? undefined,
+    participant: group?.name ?? (student ? `${student.firstName} ${student.lastName}` : "Участник"),
+    date: `${zonedStart.year}-${String(zonedStart.month).padStart(2, "0")}-${String(zonedStart.day).padStart(2, "0")}`,
+    startTime: `${String(zonedStart.hour).padStart(2, "0")}:${String(zonedStart.minute).padStart(2, "0")}`,
     duration,
     price: lesson.price,
     status: lesson.status,
     notes: lesson.notes,
     startAt: lesson.startAt,
     endAt: lesson.endAt,
-    subject: "Индивидуальное занятие",
+    subject: group ? `Групповое занятие · ${group.studentIds.length} уч.` : "Индивидуальное занятие",
     color: lessonColors[hashString(studentKey) % lessonColors.length],
     seriesId: lesson.lessonSeriesId ?? undefined,
   };
@@ -470,6 +508,26 @@ function eventWord(count: number) {
 function timeToMinutes(value: string): number {
   const [hours, minutes] = value.split(":").map(Number);
   return hours * 60 + minutes;
+}
+
+function minutesToTime(value: number): string {
+  return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+}
+
+function getQueryRange(anchorDate: Date, view: CalendarView): { from: string; to: string } {
+  if (view === "day") return { from: toDateKey(anchorDate), to: toDateKey(addDays(anchorDate, 1)) };
+  if (view === "week") {
+    const from = startOfWeek(anchorDate);
+    return { from: toDateKey(from), to: toDateKey(addDays(from, 7)) };
+  }
+  const from = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
+  const to = new Date(anchorDate.getFullYear(), anchorDate.getMonth() + 1, 1);
+  return { from: toDateKey(from), to: toDateKey(to) };
+}
+
+function dateKeyToDate(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
 
 function formatHours(value: number) {

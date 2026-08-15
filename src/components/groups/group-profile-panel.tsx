@@ -2,26 +2,31 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Archive, CalendarDays, Clock3, Pencil, Plus, RotateCcw, UserMinus, Users, WalletCards, X } from "lucide-react";
+import { Archive, CalendarDays, Clock3, Pencil, Plus, RotateCcw, Trash2, UserMinus, Users, WalletCards, X } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { initialStudents } from "@/components/students/student-data";
+import type { Student } from "@/components/students/student-types";
 import type { StudentGroup } from "./group-types";
 
 type GroupProfilePanelProps = {
   group: StudentGroup;
+  students: Student[];
+  isMutating: boolean;
+  error: string | null;
+  financeTotal: number;
   onClose: () => void;
   onEdit: () => void;
   onStatusChange: () => void;
   onAddStudent: (studentId: string) => void;
   onRemoveStudent: (studentId: string) => void;
+  onDelete: () => void;
 };
 
-export function GroupProfilePanel({ group, onClose, onEdit, onStatusChange, onAddStudent, onRemoveStudent }: GroupProfilePanelProps) {
+export function GroupProfilePanel({ group, students, isMutating, error, financeTotal, onClose, onEdit, onStatusChange, onAddStudent, onRemoveStudent, onDelete }: GroupProfilePanelProps) {
   const [showStudentPicker, setShowStudentPicker] = useState(false);
-  const members = initialStudents.filter((student) => group.studentIds.includes(student.id));
-  const availableStudents = initialStudents.filter((student) => student.status === "active" && !group.studentIds.includes(student.id));
+  const members = students.filter((student) => group.studentIds.includes(student.id));
+  const availableStudents = students.filter((student) => student.status === "active" && !group.studentIds.includes(student.id));
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -45,18 +50,19 @@ export function GroupProfilePanel({ group, onClose, onEdit, onStatusChange, onAd
           <div><h2 id="group-profile-title">{group.name}</h2><Badge tone={group.status === "active" ? "green" : "gray"}>{group.status === "active" ? "Активная" : "В архиве"}</Badge></div>
         </div>
         <div className="group-profile-actions">
-          <Button variant="secondary" icon={<Pencil size={16} />} onClick={onEdit}>Редактировать группу</Button>
-          <Button variant="secondary" icon={group.status === "active" ? <Archive size={16} /> : <RotateCcw size={16} />} onClick={onStatusChange}>{group.status === "active" ? "Архивировать" : "Восстановить"}</Button>
+          <Button variant="secondary" icon={<Pencil size={16} />} onClick={onEdit} disabled={isMutating}>Редактировать группу</Button>
+          <Button variant="secondary" icon={group.status === "active" ? <Archive size={16} /> : <RotateCcw size={16} />} onClick={onStatusChange} disabled={isMutating}>{group.status === "active" ? "Архивировать" : "Восстановить"}</Button>
         </div>
+        {error && <p className="student-form-error" role="alert">{error}</p>}
 
         <section className="group-profile-section">
           <div className="group-section-heading"><h3>Ученики <span>{members.length}</span></h3><button onClick={() => setShowStudentPicker((value) => !value)}><Plus size={14} />Добавить ученика</button></div>
           {showStudentPicker && (
             <div className="group-add-student-picker">
-              {availableStudents.length ? availableStudents.map((student) => <button key={student.id} onClick={() => { onAddStudent(student.id); setShowStudentPicker(false); }}><Avatar initials={`${student.firstName[0]}${student.lastName[0]}`} color="peach" size="sm" /><span>{student.firstName} {student.lastName}</span><Plus size={14} /></button>) : <p>Все активные ученики уже добавлены.</p>}
+              {availableStudents.length ? availableStudents.map((student) => <button disabled={isMutating} key={student.id} onClick={() => { onAddStudent(student.id); setShowStudentPicker(false); }}><Avatar initials={`${student.firstName[0]}${student.lastName[0]}`} color="peach" size="sm" /><span>{student.firstName} {student.lastName}</span><Plus size={14} /></button>) : <p>Все активные ученики уже добавлены.</p>}
             </div>
           )}
-          {members.length ? <div className="group-member-list">{members.map((student) => <div key={student.id}><Avatar initials={`${student.firstName[0]}${student.lastName[0]}`} color="peach" size="sm" /><div><strong>{student.firstName} {student.lastName}</strong><small>{student.email || student.phone}</small></div><button aria-label={`Удалить ${student.firstName} из группы`} onClick={() => onRemoveStudent(student.id)}><UserMinus size={16} /></button></div>)}</div> : <p className="group-profile-placeholder">В группе пока нет учеников.</p>}
+          {members.length ? <div className="group-member-list">{members.map((student) => <div key={student.id}><Avatar initials={`${student.firstName[0]}${student.lastName[0]}`} color="peach" size="sm" /><div><strong>{student.firstName} {student.lastName}</strong><small>{student.email || student.phone}</small></div><button disabled={isMutating} aria-label={`Удалить ${student.firstName} из группы`} onClick={() => onRemoveStudent(student.id)}><UserMinus size={16} /></button></div>)}</div> : <p className="group-profile-placeholder">В группе пока нет учеников.</p>}
         </section>
 
         <section className="group-profile-section">
@@ -68,6 +74,10 @@ export function GroupProfilePanel({ group, onClose, onEdit, onStatusChange, onAd
         <section className="group-profile-section">
           <h3>Ближайшие занятия</h3>
           {group.upcomingLessons.length ? <div className="group-upcoming-list">{group.upcomingLessons.map((lesson) => <div key={lesson.id}><span><CalendarDays size={15} /></span><div><strong>{lesson.date}</strong><small>{lesson.time}</small></div></div>)}</div> : <p className="group-profile-placeholder">Ближайших занятий пока нет.</p>}
+        </section>
+        <section className="group-profile-section"><h3>История и финансы</h3><div className="group-profile-metrics"><div><CalendarDays size={17} /><span>В истории</span><strong>{group.lessonHistoryCount} занятий</strong></div><div><WalletCards size={17} /><span>Начислено</span><strong>{financeTotal.toLocaleString("ru-RU")} ₽</strong></div></div></section>
+        <section className="group-profile-section">
+          <Button variant="secondary" icon={<Trash2 size={16} />} onClick={onDelete} disabled={isMutating}>Удалить группу</Button>
         </section>
       </aside>
     </div>,

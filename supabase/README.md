@@ -1,90 +1,70 @@
-# TutorPlan database schema
+# TutorPlan database
 
-This directory contains additive PostgreSQL migrations for the future Supabase-backed version of TutorPlan. The current frontend still uses local mock data; these migrations are not executed by the application.
+All database changes are additive SQL migrations in [`migrations`](./migrations). The application never resets, truncates, or automatically migrates a remote database.
 
-## Migration order
+## Domain model
 
-1. `migrations/202608150001_create_core_schema.sql` creates identities, tutor tenants, students, parents, groups, junction tables, and the shared `updated_at` trigger.
-2. `migrations/202608150002_create_scheduling_schema.sql` creates recurring lesson configurations and concrete lesson occurrences.
+- `profiles` — application identity linked one-to-one to `auth.users`; roles are `tutor`, `student`, and `parent`.
+- `tutors` — tenant root linked to the tutor's Auth user.
+- `tutor_settings` — timezone, working hours, defaults, reminder preferences, payment text, income goal, and appearance mode.
+- `students` — tutor-owned students, including contact details, defaults, notes, and archive state.
+- `parents` / `parent_students` — optional contact people and their many-to-many student links. Parent surname, phone, and email remain nullable.
+- `groups` / `group_students` — tutor-owned groups and membership.
+- `lesson_series` — weekly recurring templates with an individual or group target. `deleted_at` provides history-safe soft deletion.
+- `lessons` — concrete calendar occurrences. Exactly one of `student_id` or `group_id` is set.
+- `other_events` — non-lesson calendar events.
+- `finance_transactions` — immutable-style ledger. Amount is always a positive magnitude; transaction type determines direction. A partial unique index prevents duplicate lesson charges.
+- `tasks` — personal tutor tasks.
+- `account_invitations` — secure invitation metadata for future student/parent portals; delivery by email is not implemented.
 
-No finance tables, authentication UI, seed data, destructive statements, or automatic migration commands are included.
+## Authentication and isolation
 
-## Tables
+Migration `202608160004_add_auth_profiles_and_rls.sql`:
 
-### `profiles`
+- creates tutor profiles when Supabase Auth creates a public tutor account;
+- links legacy tutors by matching email without changing their IDs;
+- derives the active tenant with `current_tutor_id()`;
+- assigns `tutor_id` in database triggers rather than trusting browser input;
+- enables RLS on every private table and revokes anonymous CRUD.
 
-Application-level identity for a Supabase Auth user. Its primary key is the matching `auth.users.id`. The `role` enum accepts `tutor`, `student`, or `parent`; basic display and contact fields live here.
+Later module migrations add equivalent RLS to settings, finances, tasks, and invitations. Junction policies require both related records to belong to the current tutor.
 
-### `tutors`
+## Recurring lessons
 
-The root record for one tenant. Each tutor links one-to-one to a profile and owns students, groups, lesson series, and lessons. It also stores timezone and currency defaults.
+The schedule board stores rules in `lesson_series`; the calendar reads only `lessons`. Generation is rolling and idempotent:
 
-### `students`
+- `(lesson_series_id, series_occurrence_date)` is unique;
+- normal calendar navigation only inserts missing occurrences and does not overwrite individually edited lessons;
+- explicit “future lessons” updates never modify completed lessons;
+- indefinite schedules generate a bounded rolling range, not infinite years.
 
-A student inside one tutor's tenant. A student can exist without an application account and may later link to a `profiles` row. Default lesson price, duration, notes, contact data, and active/archive state are stored here.
+## Finance convention
 
-The `(id, tutor_id)` unique constraint supports tenant-safe composite foreign keys from groups and scheduling tables.
+- `payment` and `adjustment` add student credit.
+- `lesson_charge` and `refund` reduce student credit.
+- `expense` affects tutor profit but not student balance.
+- Completing a paid lesson creates or updates one idempotent `lesson_charge`.
+- Changing a completed lesson back to another status voids its charge instead of deleting history.
 
-### `parents`
+## Apply to Supabase
 
-A parent or guardian account linked one-to-one to a parent profile. Parents are not owned by one tutor, allowing the same parent account to be related to students taught by different tutors.
+The workspace currently has only public client credentials, so migrations were not applied remotely. Choose one safe method:
 
-### `parent_students`
+### Supabase CLI
 
-Many-to-many relationship between parents and students. It can store a relationship label and identify the primary contact.
+1. Install and authenticate the Supabase CLI.
+2. From the project root run `supabase link --project-ref <your-project-ref>`.
+3. Review pending SQL with `supabase migration list`.
+4. Apply with `supabase db push`.
 
-### `groups`
+### Supabase Dashboard
 
-A tutor-owned teaching group with default price, duration, notes, and active/archive state.
+Open SQL Editor and execute the migration files in filename order, starting with the first file not already applied. Do not rerun an already-applied migration.
 
-### `group_students`
+Afterward configure Auth URL settings:
 
-Many-to-many membership between groups and students. It includes `tutor_id` and uses composite foreign keys so a group cannot contain a student belonging to another tutor.
+- Site URL: your production URL (or `http://localhost:3000` for local-only testing).
+- Redirect URLs: add `http://localhost:3000/auth/callback` and the production `/auth/callback` URL.
+- Decide whether email confirmation is required for your environment.
 
-### `lesson_series`
-
-Configuration for a recurring weekly lesson. It stores:
-
-- the tutor and exactly one target: a student or a group;
-- start and end dates;
-- local start time, duration, and timezone;
-- repeat interval, default price, status, and notes.
-
-Series are kept separate from occurrences. This allows a series to be split when the user chooses “this and following lessons.”
-
-### `lessons`
-
-A concrete scheduled occurrence. Each lesson belongs to one tutor and exactly one student or group. It stores timezone-aware start/end timestamps, the price snapshot, lesson status, and notes.
-
-For recurring lessons:
-
-- `lesson_series_id` links to the template;
-- `series_occurrence_date` stores the original planned date and remains stable if one lesson is moved;
-- `is_series_exception` marks an occurrence edited independently.
-
-The unique partial index on `(lesson_series_id, series_occurrence_date)` prevents duplicate occurrences for one series date.
-
-## Multi-tenant integrity
-
-Every tutor-owned domain table carries `tutor_id`. Composite foreign keys enforce tenant consistency for:
-
-- students inside groups;
-- lesson targets;
-- recurring-series targets;
-- lessons linked to recurring series.
-
-This protects relational integrity, but it does not replace Row Level Security. Before exposing these tables through the Supabase Data API, add and test RLS policies for tutors, students, and parents. RLS is intentionally deferred because access rules and authentication flows have not been implemented yet.
-
-## Status values
-
-Lesson status is a PostgreSQL enum with the values already used by the frontend:
-
-- `scheduled`
-- `completed`
-- `cancelled`
-- `rescheduled`
-- `no_show`
-
-## Applying later
-
-Review the SQL and configure a Supabase project before applying migrations. No migration has been executed automatically as part of this change.
+No service-role key belongs in `.env.local` or browser code.

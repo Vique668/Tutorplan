@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { CalendarDays, CircleAlert, Clock3, LoaderCircle, Plus } from "lucide-react";
 import { ScheduleFormModal } from "@/components/schedule/schedule-form-modal";
 import type { Student } from "@/components/students/student-types";
+import type { StudentGroup } from "@/components/groups/group-types";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import type {
@@ -20,6 +21,7 @@ import {
   updateLessonSeries,
 } from "../../../lib/supabase/lesson-series";
 import { getStudents } from "../../../lib/supabase/students";
+import { getGroups } from "../../../lib/supabase/groups";
 
 const weekdays = [
   { value: 1, label: "Понедельник" },
@@ -33,6 +35,7 @@ const weekdays = [
 
 export default function SchedulePage() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [groups, setGroups] = useState<StudentGroup[]>([]);
   const [series, setSeries] = useState<LessonSeries[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -46,8 +49,9 @@ export default function SchedulePage() {
     if (showLoading) setIsLoading(true);
     setLoadError(null);
     try {
-      const [loadedStudents, loadedSeries] = await Promise.all([getStudents(), getLessonSeries()]);
+      const [loadedStudents, loadedGroups, loadedSeries] = await Promise.all([getStudents(), getGroups(), getLessonSeries()]);
       setStudents(loadedStudents);
+      setGroups(loadedGroups);
       setSeries(loadedSeries);
     } catch (error) {
       setLoadError(getErrorMessage(error));
@@ -61,6 +65,7 @@ export default function SchedulePage() {
   }, [loadSchedule]);
 
   const activeStudents = students.filter((student) => student.status === "active");
+  const activeGroups = groups.filter((group) => group.status === "active");
 
   async function saveSchedule(draft: CreateLessonSeriesInput, options?: LessonSeriesUpdateOptions) {
     setIsSubmitting(true);
@@ -163,10 +168,11 @@ export default function SchedulePage() {
                   <div className="schedule-board-cards">
                     {daySeries.map((item) => {
                       const student = students.find((candidate) => candidate.id === item.studentId);
+                      const group = groups.find((candidate) => candidate.id === item.groupId);
                       return (
                         <button type="button" className={`schedule-compact-card ${item.isActive ? "" : "schedule-compact-card-inactive"}`} key={item.id} onClick={() => openDetailsModal(item)}>
                           <span className={`schedule-state-dot ${item.isActive ? "is-active" : ""}`} aria-hidden="true" />
-                          <strong>{student ? `${student.firstName} ${student.lastName}` : "Ученик не найден"}</strong>
+                          <strong>{group?.name ?? (student ? `${student.firstName} ${student.lastName}` : "Участник не найден")}</strong>
                           <span className="schedule-compact-time">{item.startTime}–{getSeriesEndTime(item)}</span>
                           <small>{formatDuration(getSeriesDuration(item))}</small>
                           <small className="schedule-compact-price">{item.price.toLocaleString("ru-RU")} ₽</small>
@@ -188,6 +194,7 @@ export default function SchedulePage() {
       {isModalOpen && (
         <ScheduleFormModal
           students={selectedSeries ? students : activeStudents}
+          groups={selectedSeries ? groups : activeGroups}
           series={selectedSeries ?? undefined}
           initialWeekday={createWeekday}
           initialStartDate={toLocalDateKey(new Date())}

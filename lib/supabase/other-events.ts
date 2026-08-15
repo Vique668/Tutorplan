@@ -1,6 +1,5 @@
 import type { CreateOtherEventInput, OtherEvent } from "../../src/types/other-event";
 import { createClient } from "./client";
-import { CURRENT_TUTOR_ID } from "./students";
 
 const otherEventColumns = "id,tutor_id,title,event_date,start_time,end_time,notes,created_at" as const;
 
@@ -15,14 +14,16 @@ type OtherEventRow = {
   created_at: string;
 };
 
-export async function getOtherEvents(): Promise<OtherEvent[]> {
+export async function getOtherEvents(fromDate?: string, toDate?: string): Promise<OtherEvent[]> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("other_events")
     .select(otherEventColumns)
-    .eq("tutor_id", CURRENT_TUTOR_ID)
     .order("event_date", { ascending: true })
     .order("start_time", { ascending: true });
+  if (fromDate) query = query.gte("event_date", fromDate);
+  if (toDate) query = query.lt("event_date", toDate);
+  const { data, error } = await query;
 
   if (error) throw error;
   return (data as OtherEventRow[]).map(toOtherEvent);
@@ -33,7 +34,6 @@ export async function createOtherEvent(input: CreateOtherEventInput): Promise<Ot
   const { data, error } = await supabase
     .from("other_events")
     .insert({
-      tutor_id: CURRENT_TUTOR_ID,
       title: input.title.trim(),
       event_date: input.eventDate,
       start_time: input.startTime,
@@ -59,7 +59,6 @@ export async function updateOtherEvent(eventId: string, input: CreateOtherEventI
       notes: emptyToNull(input.notes),
     })
     .eq("id", eventId)
-    .eq("tutor_id", CURRENT_TUTOR_ID)
     .select(otherEventColumns)
     .single();
 
@@ -69,13 +68,15 @@ export async function updateOtherEvent(eventId: string, input: CreateOtherEventI
 
 export async function deleteOtherEvent(eventId: string): Promise<void> {
   const supabase = createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("other_events")
     .delete()
     .eq("id", eventId)
-    .eq("tutor_id", CURRENT_TUTOR_ID);
+    .select("id")
+    .single();
 
   if (error) throw error;
+  if (data.id !== eventId) throw new Error("Supabase did not delete the event");
 }
 
 function toOtherEvent(row: OtherEventRow): OtherEvent {

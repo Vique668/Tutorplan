@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
-import { emptyStudentDraft } from "@/components/students/student-data";
+import { emptyStudentDraft } from "@/components/students/student-defaults";
 import { StudentModal } from "@/components/students/student-modal";
 import type { Student, StudentDraft, StudentFilter } from "@/components/students/student-types";
 import {
