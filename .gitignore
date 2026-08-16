@@ -9,3 +9,4 @@ out/
 Thumbs.db
 *.tsbuildinfo
 supabase/.temp/
+.vercel/

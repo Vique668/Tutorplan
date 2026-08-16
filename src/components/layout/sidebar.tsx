@@ -37,7 +37,8 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   useEffect(() => {
     let active = true;
     const supabase = createClient();
-    void supabase.auth.getUser().then(async ({ data }) => {
+    const loadProfile = async () => {
+      const { data } = await supabase.auth.getUser();
       if (!data.user || !active) return;
       const { data: loadedProfile } = await supabase
         .from("profiles")
@@ -52,8 +53,14 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           avatarUrl: loadedProfile?.avatar_url ?? "",
         });
       }
-    });
-    return () => { active = false; };
+    };
+    const handleProfileUpdated = () => { void loadProfile(); };
+    void loadProfile();
+    window.addEventListener("tutorplan:profile-updated", handleProfileUpdated);
+    return () => {
+      active = false;
+      window.removeEventListener("tutorplan:profile-updated", handleProfileUpdated);
+    };
   }, []);
 
   async function logout() {
