@@ -11,6 +11,7 @@ import {
   CalendarLessonDetailsModal,
   type CalendarLessonCancelDraft,
   type CalendarLessonEditDraft,
+  type CalendarLessonRescheduleDraft,
 } from "@/components/calendar/calendar-lesson-details-modal";
 import { CalendarOtherEventDetailsModal } from "@/components/calendar/calendar-other-event-details-modal";
 import type { CalendarOtherEventDraft } from "@/components/calendar/calendar-other-event-form-fields";
@@ -305,6 +306,30 @@ export default function CalendarPage() {
     }
   }
 
+  async function rescheduleSelectedLesson(draft: CalendarLessonRescheduleDraft) {
+    if (!selectedLesson) return;
+    if (!confirmCalendarCollision(draft.date, draft.startTime, draft.endTime, selectedLesson.id, "lesson")) return;
+
+    setIsLessonMutating(true);
+    setLessonActionError(null);
+    try {
+      const updated = await updateLesson(selectedLesson.id, {
+        startAt: zonedLocalToIso(draft.date, draft.startTime, timezone),
+        endAt: zonedLocalToIso(draft.date, draft.endTime, timezone),
+        status: "rescheduled",
+      });
+      const calendarLesson = toCalendarLesson(updated, students, groups, timezone);
+      setLessons((current) => current.map((lesson) => lesson.id === calendarLesson.id ? calendarLesson : lesson));
+      setSelectedLesson(calendarLesson);
+      setAnchorDate(dateKeyToDate(draft.date));
+      await loadCalendar(false);
+    } catch (error) {
+      setLessonActionError(getErrorMessage(error));
+    } finally {
+      setIsLessonMutating(false);
+    }
+  }
+
   async function changeSelectedLessonStatus(status: Lesson["status"]) {
     if (!selectedLesson) return;
     setIsLessonMutating(true);
@@ -387,10 +412,20 @@ export default function CalendarPage() {
                 { value: "scheduled", label: "Запланировано" },
                 { value: "completed", label: "Проведено" },
                 { value: "cancelled", label: "Отменено" },
+                { value: "rescheduled", label: "Перенесено" },
               ] as const).map((item) => <button key={item.value} className={statusFilter === item.value ? `active status-${item.value}` : ""} onClick={() => setStatusFilter(item.value)}>{item.label}</button>)}
             </div>
           )}
           <span className="week-load">{displayedLessons.length} {eventWord(displayedLessons.length)} · {formatHours(displayedLessons.reduce((sum, lesson) => sum + lesson.duration / 60, 0))}</span>
+        </div>
+
+        <div className="calendar-color-legend" aria-label="Цветовые обозначения календаря">
+          <span><i className="calendar-color-scheduled" />Запланировано</span>
+          <span><i className="calendar-color-completed" />Проведено</span>
+          <span><i className="calendar-color-cancelled" />Отменено</span>
+          <span><i className="calendar-color-rescheduled" />Перенесено</span>
+          <span><i className="calendar-color-no-show" />Не пришёл</span>
+          <span><i className="calendar-color-other" />Другое событие</span>
         </div>
 
         {isLoading && <div className="calendar-data-state" aria-live="polite"><LoaderCircle size={18} /><span>Загружаем события из Supabase…</span></div>}
@@ -427,6 +462,7 @@ export default function CalendarPage() {
           onClose={() => { if (!isLessonMutating) setSelectedLesson(null); }}
           onUpdate={saveSelectedLesson}
           onCancelLesson={cancelSelectedLesson}
+          onReschedule={rescheduleSelectedLesson}
           onStatusChange={changeSelectedLessonStatus}
           onDelete={deleteSelectedLesson}
         />

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Ban, CheckCircle2, RotateCcw, Trash2, X } from "lucide-react";
+import { Ban, CalendarClock, CheckCircle2, RotateCcw, Trash2, X } from "lucide-react";
 import type { Student } from "@/components/students/student-types";
 import type { StudentGroup } from "@/components/groups/group-types";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,14 @@ export type CalendarLessonCancelDraft = {
   fee: number;
 };
 
+export type CalendarLessonRescheduleDraft = {
+  date: string;
+  startTime: string;
+  endTime: string;
+};
+
+const editableLessonStatuses = [...primaryLessonStatuses, "rescheduled"] as const;
+
 const cancellationReasonOptions: { value: LessonCancellationReason | ""; label: string }[] = [
   { value: "", label: "Не указывать" },
   { value: "tutor_cancelled", label: "Моя отмена" },
@@ -44,24 +52,30 @@ type CalendarLessonDetailsModalProps = {
   onClose: () => void;
   onUpdate: (draft: CalendarLessonEditDraft) => Promise<void>;
   onCancelLesson: (draft: CalendarLessonCancelDraft) => Promise<void>;
+  onReschedule: (draft: CalendarLessonRescheduleDraft) => Promise<void>;
   onStatusChange: (status: LessonStatus) => Promise<void>;
   onDelete: () => Promise<void>;
 };
 
-export function CalendarLessonDetailsModal({ lesson, students, groups, isMutating, error, onClose, onUpdate, onCancelLesson, onStatusChange, onDelete }: CalendarLessonDetailsModalProps) {
+export function CalendarLessonDetailsModal({ lesson, students, groups, isMutating, error, onClose, onUpdate, onCancelLesson, onReschedule, onStatusChange, onDelete }: CalendarLessonDetailsModalProps) {
   const [draft, setDraft] = useState<CalendarLessonEditDraft>(() => toEditDraft(lesson));
   const [validationError, setValidationError] = useState<string | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState<LessonCancellationReason | "">(lesson.cancellationReason ?? "");
   const [cancelFee, setCancelFee] = useState(lesson.cancellationFee ?? 0);
   const [cancelValidationError, setCancelValidationError] = useState<string | null>(null);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [rescheduleDraft, setRescheduleDraft] = useState<CalendarLessonRescheduleDraft>(() => toRescheduleDraft(lesson));
+  const [rescheduleValidationError, setRescheduleValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     setDraft(toEditDraft(lesson));
     setValidationError(null);
     setCancelReason(lesson.cancellationReason ?? "");
     setCancelFee(lesson.cancellationFee ?? 0);
+    setRescheduleDraft(toRescheduleDraft(lesson));
     if (lesson.status === "cancelled") setCancelDialogOpen(false);
+    if (lesson.status === "rescheduled") setRescheduleDialogOpen(false);
   }, [lesson]);
 
   useEffect(() => {
@@ -70,6 +84,7 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !isMutating) {
         if (cancelDialogOpen) setCancelDialogOpen(false);
+        else if (rescheduleDialogOpen) setRescheduleDialogOpen(false);
         else onClose();
       }
     };
@@ -78,7 +93,7 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [cancelDialogOpen, isMutating, onClose]);
+  }, [cancelDialogOpen, isMutating, onClose, rescheduleDialogOpen]);
 
   function update<K extends keyof CalendarLessonEditDraft>(field: K, value: CalendarLessonEditDraft[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -142,6 +157,16 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
     await onCancelLesson({ reason: cancelReason || null, fee: cancelFee });
   }
 
+  async function submitReschedule() {
+    const nextError = validateRescheduleDraft(rescheduleDraft);
+    if (nextError) {
+      setRescheduleValidationError(nextError);
+      return;
+    }
+    setRescheduleValidationError(null);
+    await onReschedule(rescheduleDraft);
+  }
+
   return createPortal(
     <div className="lesson-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !isMutating && onClose()}>
       <section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="calendar-lesson-details-title">
@@ -165,7 +190,7 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
             <label><span>Время начала</span><input type="time" min="08:00" max="21:30" step="60" value={draft.startTime} onChange={(event) => updateStartTime(event.target.value)} required disabled={isMutating} /></label>
             <label><span>Время окончания</span><input type="time" min="08:01" max="22:00" step="60" value={draft.endTime} onChange={(event) => update("endTime", event.target.value)} required disabled={isMutating} /></label>
             <label><span>Стоимость</span><div className="price-input-wrap"><input type="number" min="0" step="1" value={draft.price} onChange={(event) => update("price", Number(event.target.value))} required disabled={isMutating} /><i>₽</i></div></label>
-            <label className="lesson-form-full"><span>Статус</span><select value={draft.status} onChange={(event) => update("status", event.target.value as LessonStatus)} disabled={isMutating}>{primaryLessonStatuses.map((value) => <option value={value} key={value}>{lessonStatusLabels[value]}</option>)}</select></label>
+            <label className="lesson-form-full"><span>Статус</span><select value={draft.status} onChange={(event) => update("status", event.target.value as LessonStatus)} disabled={isMutating}>{editableLessonStatuses.map((value) => <option value={value} key={value}>{lessonStatusLabels[value]}</option>)}</select></label>
             <label className="lesson-form-full"><span>Заметки</span><textarea rows={3} value={draft.notes} onChange={(event) => update("notes", event.target.value)} disabled={isMutating} /></label>
           </div>
           <div className="lesson-form-summary"><span>{draft.startTime}–{draft.endTime}</span><strong>{draft.price.toLocaleString("ru-RU")} ₽</strong></div>
@@ -175,6 +200,7 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
             <Button type="button" variant="ghost" className="delete-lesson-button" icon={<Trash2 size={16} />} onClick={() => { if (window.confirm("Удалить этот урок без возможности восстановления? Связанное начисление также будет удалено.")) void onDelete(); }} disabled={isMutating}>Удалить урок</Button>
             <div>
               <Button type="button" variant="secondary" icon={<CheckCircle2 size={16} />} onClick={() => void onStatusChange("completed")} disabled={isMutating || lesson.status === "completed"}>Провести урок</Button>
+              {normalizeStatus(lesson.status) !== "cancelled" && lesson.status !== "completed" && <Button type="button" variant="secondary" icon={<CalendarClock size={16} />} onClick={() => { setRescheduleValidationError(null); setRescheduleDraft(toRescheduleDraft(lesson)); setRescheduleDialogOpen(true); }} disabled={isMutating}>Перенести урок</Button>}
               {normalizeStatus(lesson.status) === "cancelled" ? (
                 <Button
                   type="button"
@@ -215,6 +241,27 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
           </section>
         </div>
       )}
+      {rescheduleDialogOpen && (
+        <div className="lesson-reschedule-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !isMutating && setRescheduleDialogOpen(false)}>
+          <section className="lesson-reschedule-dialog" role="dialog" aria-modal="true" aria-labelledby="lesson-reschedule-title">
+            <div className="lesson-reschedule-header">
+              <div><span>ПЕРЕНОС УРОКА</span><h2 id="lesson-reschedule-title">Выберите новое время</h2></div>
+              <button type="button" className="icon-button" aria-label="Закрыть" onClick={() => setRescheduleDialogOpen(false)} disabled={isMutating}><X size={20} /></button>
+            </div>
+            <form onSubmit={(event) => { event.preventDefault(); void submitReschedule(); }}>
+              <p className="lesson-reschedule-copy">Перенести урок с <strong>{lesson.participant}</strong> с {formatCancellationDate(lesson.date)}, <strong>{lesson.startTime}</strong>?</p>
+              <div className="lesson-reschedule-fields">
+                <label className="lesson-reschedule-date"><span>Новая дата</span><input type="date" value={rescheduleDraft.date} onChange={(event) => { setRescheduleDraft((current) => ({ ...current, date: event.target.value })); setRescheduleValidationError(null); }} required disabled={isMutating} /></label>
+                <label><span>Начало</span><input type="time" min="08:00" max="21:59" step="60" value={rescheduleDraft.startTime} onChange={(event) => { setRescheduleDraft((current) => ({ ...current, startTime: event.target.value })); setRescheduleValidationError(null); }} required disabled={isMutating} /></label>
+                <label><span>Окончание</span><input type="time" min="08:01" max="22:00" step="60" value={rescheduleDraft.endTime} onChange={(event) => { setRescheduleDraft((current) => ({ ...current, endTime: event.target.value })); setRescheduleValidationError(null); }} required disabled={isMutating} /></label>
+              </div>
+              <div className="lesson-reschedule-note">Изменится только этот урок. Шаблон недельного расписания останется прежним.</div>
+              {(rescheduleValidationError || error) && <p className="lesson-form-error" role="alert">{rescheduleValidationError || error}</p>}
+              <div className="lesson-reschedule-actions"><Button type="button" variant="secondary" onClick={() => setRescheduleDialogOpen(false)} disabled={isMutating}>Не переносить</Button><Button type="submit" disabled={isMutating}>{isMutating ? "Перенос…" : "Перенести урок"}</Button></div>
+            </form>
+          </section>
+        </div>
+      )}
     </div>,
     document.body,
   );
@@ -243,9 +290,26 @@ function toEditDraft(lesson: CalendarLesson): CalendarLessonEditDraft {
   };
 }
 
+function toRescheduleDraft(lesson: CalendarLesson): CalendarLessonRescheduleDraft {
+  return {
+    date: lesson.date,
+    startTime: lesson.startTime,
+    endTime: formatLessonEnd(lesson.startTime, lesson.duration),
+  };
+}
+
 function normalizeStatus(status: LessonStatus): LessonStatus {
-  if ((primaryLessonStatuses as readonly string[]).includes(status)) return status;
+  if ((editableLessonStatuses as readonly string[]).includes(status)) return status;
   return status === "no_show" ? "cancelled" : "scheduled";
+}
+
+function validateRescheduleDraft(draft: CalendarLessonRescheduleDraft): string | null {
+  if (!draft.date || !draft.startTime || !draft.endTime) return "Укажите новую дату, начало и окончание урока.";
+  const startMinutes = timeToMinutes(draft.startTime);
+  const endMinutes = timeToMinutes(draft.endTime);
+  if (endMinutes <= startMinutes) return "Время окончания должно быть позже времени начала.";
+  if (startMinutes < 8 * 60 || endMinutes > 22 * 60) return "Урок должен находиться в пределах календаря с 08:00 до 22:00.";
+  return null;
 }
 
 function validateDraft(draft: CalendarLessonEditDraft, students: Student[], groups: StudentGroup[]): string | null {

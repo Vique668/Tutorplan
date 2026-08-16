@@ -31,12 +31,14 @@
   --lesson-scheduled-bg: #edf4ff;
   --lesson-completed: #31936a;
   --lesson-completed-bg: #e7f5ed;
-  --lesson-cancelled: #8d9094;
-  --lesson-cancelled-bg: #f0f1f2;
+  --lesson-cancelled: #d36b74;
+  --lesson-cancelled-bg: #fdebed;
   --lesson-rescheduled: #d28b2f;
   --lesson-rescheduled-bg: #fff3dc;
   --lesson-no-show: #c85e68;
   --lesson-no-show-bg: #fbeaec;
+  --event-other: #8873a5;
+  --event-other-bg: #f1edf7;
 }
 
 html[data-theme="late-summer"] {
@@ -287,6 +289,16 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
 .calendar-status-filter button.active.status-scheduled { color: #315a91; border-color: #cddcf1; background: var(--lesson-scheduled-bg); }
 .calendar-status-filter button.active.status-completed { color: #286849; border-color: #c9e6d5; background: var(--lesson-completed-bg); }
 .calendar-status-filter button.active.status-cancelled { color: #696d70; border-color: #d9dcde; background: var(--lesson-cancelled-bg); }
+.calendar-status-filter button.active.status-rescheduled { color: #7d5516; border-color: #efd9ad; background: var(--lesson-rescheduled-bg); }
+.calendar-color-legend { display: flex; min-height: 42px; align-items: center; gap: 18px; padding: 0 20px; overflow-x: auto; border-bottom: 1px solid var(--line); color: #776e68; background: color-mix(in srgb,var(--surface-soft) 72%,white); font-size: 8px; font-weight: 700; scrollbar-width: thin; }
+.calendar-color-legend span { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; white-space: nowrap; }
+.calendar-color-legend i { width: 22px; height: 10px; border: 1px solid transparent; border-radius: 4px; }
+.calendar-color-scheduled { border-color: #cddcf1 !important; background: var(--lesson-scheduled-bg); }
+.calendar-color-completed { border-color: #c9e6d5 !important; background: var(--lesson-completed-bg); }
+.calendar-color-cancelled { border-color: #efcbd0 !important; background: var(--lesson-cancelled-bg); }
+.calendar-color-rescheduled { border-color: #efd9ad !important; background: var(--lesson-rescheduled-bg); }
+.calendar-color-no-show { border-color: #efcbd0 !important; background: var(--lesson-no-show-bg); }
+.calendar-color-other { border-color: #d8cee5 !important; background: var(--event-other-bg); }
 .tutor-week-scroll { overflow: auto; }
 .tutor-week-calendar { min-width: 1040px; }
 .tutor-week-header { display: grid; grid-template-columns: 70px repeat(var(--day-count,7),minmax(130px,1fr)); height: 76px; border-bottom: 1px solid var(--line); background: #fffefd; }
@@ -315,7 +327,7 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
 .calendar-lesson-break.is-zero { z-index: 4; min-height: 0; transform: translateY(-50%); }
 .tutor-lesson { position: absolute; right: 7px; left: 7px; z-index: 3; display: flex; flex-direction: column; min-height: 48px; padding: 9px 10px; overflow: hidden; border: 1px solid color-mix(in srgb,var(--orange) 18%,transparent); border-left: 3px solid var(--orange); border-radius: 11px; color: var(--accent-ink); background: linear-gradient(135deg,color-mix(in srgb,var(--orange-soft) 84%,white),var(--orange-soft)); box-shadow: 0 4px 12px rgba(90,55,29,.055); text-align: left; cursor: pointer; transition: transform .15s ease,box-shadow .15s ease; }
 .tutor-lesson:hover { z-index: 4; transform: translateY(-1px); box-shadow: 0 7px 16px rgba(90,55,29,.1); }
-.calendar-other-event { border-color: #a99db8 !important; border-left-color: #81738f !important; border-style: dashed; color: #62586e; background: linear-gradient(135deg,#f5f2f7,#ece7f0) !important; box-shadow: 0 3px 10px rgba(68,55,77,.04); cursor: pointer; }
+.calendar-other-event { border-color: #b9aacd !important; border-left-color: var(--event-other) !important; border-style: dashed; color: #62586e; background: var(--event-other-bg) !important; box-shadow: 0 3px 10px rgba(68,55,77,.04); cursor: pointer; }
 .calendar-other-event:hover { box-shadow: 0 7px 16px rgba(68,55,77,.1); }
 .tutor-lesson strong { overflow: hidden; font-size: 9px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
 .tutor-lesson > span { margin-top: 3px; opacity: .78; font-size: 8px; font-weight: 600; }
@@ -330,7 +342,7 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
 .tutor-lesson-rose { border-color: rgba(163,88,110,.11); border-left-color: #c47c8d; color: #835062; background: linear-gradient(135deg,#fbf0f3,#f4e1e7); }
 .lesson-status-scheduled { --lesson-status-color: var(--lesson-scheduled); border-color: #cddcf1 !important; border-left-color: var(--lesson-scheduled) !important; color: #315a91 !important; background: var(--lesson-scheduled-bg) !important; }
 .lesson-status-completed { --lesson-status-color: var(--lesson-completed); border-color: #c9e6d5 !important; border-left-color: var(--lesson-completed) !important; color: #286849 !important; background: var(--lesson-completed-bg) !important; }
-.lesson-status-cancelled { --lesson-status-color: var(--lesson-cancelled); border-color: #d9dcde !important; border-left-color: var(--lesson-cancelled) !important; color: #696d70 !important; background: var(--lesson-cancelled-bg) !important; opacity: .58; }
+.lesson-status-cancelled { --lesson-status-color: var(--lesson-cancelled); border-color: #efcbd0 !important; border-left-color: var(--lesson-cancelled) !important; color: #85434a !important; background: var(--lesson-cancelled-bg) !important; opacity: .72; }
 .lesson-status-rescheduled { --lesson-status-color: var(--lesson-rescheduled); border-color: #efd9ad !important; border-left-color: var(--lesson-rescheduled) !important; color: #7d5516 !important; background: var(--lesson-rescheduled-bg) !important; }
 .lesson-status-no_show { --lesson-status-color: var(--lesson-no-show); border-color: #efcbd0 !important; border-left-color: var(--lesson-no-show) !important; color: #8b3f47 !important; background: var(--lesson-no-show-bg) !important; }
 .lesson-status-cancelled strong { text-decoration: line-through; text-decoration-thickness: 1px; }
@@ -436,6 +448,23 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
 .lesson-cancel-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; padding-top: 17px; border-top: 1px solid var(--line); }
 .confirm-cancel-button { color: white; background: linear-gradient(135deg,#ee7169,#d95650); box-shadow: 0 7px 18px rgba(205,75,67,.2); }
 .confirm-cancel-button:hover { box-shadow: 0 9px 22px rgba(205,75,67,.26); }
+.lesson-reschedule-layer { position: fixed; inset: 0; z-index: 121; display: grid; padding: 24px; place-items: center; overflow-y: auto; background: rgba(47,40,35,.42); backdrop-filter: blur(5px); }
+.lesson-reschedule-dialog { width: min(100%,520px); overflow: hidden; border: 1px solid rgba(231,225,219,.96); border-radius: 22px; background: #fff; box-shadow: 0 26px 80px rgba(45,31,22,.24); }
+.lesson-reschedule-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 22px 24px 18px; border-bottom: 1px solid var(--line); background: linear-gradient(110deg,var(--lesson-rescheduled-bg),#fff); }
+.lesson-reschedule-header > div { display: flex; flex-direction: column; gap: 5px; }
+.lesson-reschedule-header span { color: #a56b1f; font-size: 8px; font-weight: 850; letter-spacing: .13em; }
+.lesson-reschedule-header h2 { margin: 0; font-size: 20px; letter-spacing: -.025em; }
+.lesson-reschedule-dialog form { padding: 22px 24px 24px; }
+.lesson-reschedule-copy { margin: 0 0 20px; color: #4c433d; font-size: 13px; line-height: 1.65; text-align: center; }
+.lesson-reschedule-copy strong { color: #a56b1f; }
+.lesson-reschedule-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lesson-reschedule-fields label { display: flex; min-width: 0; flex-direction: column; gap: 7px; }
+.lesson-reschedule-fields label > span { font-size: 9px; font-weight: 750; }
+.lesson-reschedule-fields input { width: 100%; height: 43px; padding: 0 12px; border: 1px solid var(--line); border-radius: 11px; outline: none; color: var(--text); background: #fffefd; font-size: 11px; }
+.lesson-reschedule-fields input:focus { border-color: var(--lesson-rescheduled); box-shadow: 0 0 0 3px var(--lesson-rescheduled-bg); }
+.lesson-reschedule-date { grid-column: 1/-1; }
+.lesson-reschedule-note { margin-top: 13px; padding: 10px 12px; border-radius: 10px; color: #746a63; background: var(--lesson-rescheduled-bg); font-size: 9px; line-height: 1.45; }
+.lesson-reschedule-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; padding-top: 17px; border-top: 1px solid var(--line); }
 .delete-confirm-actions { display: flex; width: 100%; justify-content: flex-end; gap: 9px; }
 .confirm-delete-button { background: linear-gradient(135deg,#d97979,#c85e68); box-shadow: 0 6px 16px rgba(190,75,86,.18); }
 .lesson-details-content { padding: 20px 22px 21px; }
@@ -1003,11 +1032,12 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
   .app-shell::after { inset: 0; width: auto; height: auto; background-position: center; background-size: 100% 100%; opacity: calc(var(--decor-opacity) * .65); }
   .lesson-modal-backdrop { align-items: end; padding: 12px; }
   .lesson-modal { border-radius: 19px; }
-  .lesson-cancel-layer { align-items: end; padding: 12px; }
-  .lesson-cancel-dialog { border-radius: 19px; }
-  .lesson-cancel-fields { grid-template-columns: 1fr; }
-  .lesson-cancel-actions { align-items: stretch; flex-direction: column-reverse; }
-  .lesson-cancel-actions .button { width: 100%; }
+  .lesson-cancel-layer,.lesson-reschedule-layer { align-items: end; padding: 12px; }
+  .lesson-cancel-dialog,.lesson-reschedule-dialog { border-radius: 19px; }
+  .lesson-cancel-fields,.lesson-reschedule-fields { grid-template-columns: 1fr; }
+  .lesson-reschedule-date { grid-column: auto; }
+  .lesson-cancel-actions,.lesson-reschedule-actions { align-items: stretch; flex-direction: column-reverse; }
+  .lesson-cancel-actions .button,.lesson-reschedule-actions .button { width: 100%; }
   .lesson-form-grid { grid-template-columns: 1fr; }
   .lesson-form-full { grid-column: auto; }
   .lesson-details-grid { grid-template-columns: 1fr; }
@@ -1216,11 +1246,11 @@ input,select,textarea { min-width: 0; }
   .statistics-real-bars { min-height: 250px; padding-right: 14px; padding-left: 14px; }
   .statistics-summary-list { padding-right: 14px; padding-left: 14px; }
 
-  .lesson-modal,.student-modal,.group-modal,.lesson-cancel-dialog { display: flex; max-height: calc(100dvh - 24px); flex-direction: column; }
-  .lesson-modal > form,.student-modal > form,.group-modal > form,.lesson-cancel-dialog > form { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-  .lesson-modal-header,.student-modal-header,.group-modal-header,.lesson-cancel-header { flex: 0 0 auto; padding: 18px 17px 15px; }
-  .lesson-modal form,.student-modal form,.group-modal form,.lesson-cancel-dialog form { padding-right: 17px; padding-left: 17px; }
-  .lesson-modal-footer,.student-modal-footer,.group-modal-footer,.lesson-cancel-actions { padding-bottom: max(0px,env(safe-area-inset-bottom)); }
+  .lesson-modal,.student-modal,.group-modal,.lesson-cancel-dialog,.lesson-reschedule-dialog { display: flex; max-height: calc(100dvh - 24px); flex-direction: column; }
+  .lesson-modal > form,.student-modal > form,.group-modal > form,.lesson-cancel-dialog > form,.lesson-reschedule-dialog > form { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .lesson-modal-header,.student-modal-header,.group-modal-header,.lesson-cancel-header,.lesson-reschedule-header { flex: 0 0 auto; padding: 18px 17px 15px; }
+  .lesson-modal form,.student-modal form,.group-modal form,.lesson-cancel-dialog form,.lesson-reschedule-dialog form { padding-right: 17px; padding-left: 17px; }
+  .lesson-modal-footer,.student-modal-footer,.group-modal-footer,.lesson-cancel-actions,.lesson-reschedule-actions { padding-bottom: max(0px,env(safe-area-inset-bottom)); }
   .student-profile-panel,.group-profile-panel { width: 100%; max-width: none; padding-bottom: max(28px,env(safe-area-inset-bottom)); }
   .student-panel-topbar,.group-panel-topbar { padding-top: max(17px,env(safe-area-inset-top)); }
 
@@ -1243,6 +1273,7 @@ input,select,textarea { min-width: 0; }
   .student-profile-metrics,.group-profile-metrics { grid-template-columns: 1fr; }
   .lesson-cancellation-summary { align-items: flex-start; flex-direction: column; }
   .lesson-cancel-copy { text-align: left; }
+  .lesson-reschedule-copy { text-align: left; }
 }
 
 @media (max-height: 620px) and (max-width: 900px) {

@@ -1,7 +1,7 @@
 export type CalendarView = "day" | "week" | "month";
 export type LessonStatus = "scheduled" | "completed" | "cancelled" | "rescheduled" | "no_show";
 export type LessonCancellationReason = "tutor_cancelled" | "illness" | "absence" | "holiday";
-export type LessonStatusFilter = "all" | "scheduled" | "completed" | "cancelled";
+export type LessonStatusFilter = "all" | "scheduled" | "completed" | "cancelled" | "rescheduled";
 export type RecurrenceOption = "none" | "weekly";
 export type SeriesActionScope = "single" | "following";
 
