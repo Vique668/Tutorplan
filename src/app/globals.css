@@ -412,6 +412,7 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
 /* Lesson modal */
 .lesson-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; padding: 24px; place-items: center; overflow-y: auto; background: rgba(49,42,37,.28); backdrop-filter: blur(4px); }
 .lesson-modal { width: min(100%,530px); overflow: hidden; border: 1px solid rgba(231,225,219,.96); border-radius: 21px; background: white; box-shadow: 0 24px 70px rgba(57,39,25,.18); }
+.lesson-modal.group-lesson-modal { width: min(100%,760px); }
 .lesson-modal-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 21px 22px 18px; border-bottom: 1px solid var(--line); background: linear-gradient(110deg,color-mix(in srgb,var(--accent-pale) 80%,white),white); }
 .lesson-modal-header > div { display: flex; flex-direction: column; }
 .lesson-modal-header span { color: var(--orange-dark); font-size: 8px; font-weight: 800; letter-spacing: .13em; }
@@ -435,6 +436,34 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
 .price-input-wrap i { position: absolute; top: 50%; right: 12px; color: var(--muted); font-size: 10px; font-style: normal; transform: translateY(-50%); }
 .lesson-form-summary { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding: 11px 13px; border-radius: 11px; color: var(--accent-ink); background: var(--accent-pale); font-size: 10px; }
 .lesson-form-summary strong { font-size: 11px; }
+.group-lesson-attendance-section { margin-top: 18px; padding: 16px; border: 1px solid var(--line); border-radius: 15px; background: color-mix(in srgb,var(--surface-soft) 55%,white); }
+.group-attendance-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.group-attendance-heading > div > span { color: var(--orange-dark); font-size: 7px; font-weight: 800; letter-spacing: .12em; }
+.group-attendance-heading h3 { margin: 4px 0 0; color: #403630; font-size: 14px; letter-spacing: -.025em; }
+.group-attendance-heading > small { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 8px; white-space: nowrap; }
+.group-attendance-heading > small i { width: 9px; height: 9px; border-radius: 50%; background: #73d69c; }
+.group-attendance-heading > small i:nth-of-type(2) { margin-left: 5px; background: #ee9aa0; }
+.group-attendance-loading { margin: 0; padding: 17px; border: 1px dashed var(--line); border-radius: 11px; color: var(--muted); font-size: 9px; text-align: center; }
+.group-attendance-prices { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-bottom: 14px; }
+.group-attendance-prices label { display: grid; min-width: 0; min-height: 46px; align-items: center; grid-template-columns: minmax(0,1fr) 112px; gap: 10px; padding: 7px 9px 7px 12px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.88); }
+.group-attendance-prices label > span { overflow: hidden; color: #51463f; font-size: 9px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.group-attendance-prices input,.group-absence-row input,.group-absence-row select { width: 100%; height: 34px; padding: 0 9px; border: 1px solid var(--line); border-radius: 9px; outline: none; color: var(--text); background: white; font-size: 9px; }
+.group-attendance-prices input:focus,.group-absence-row input:focus,.group-absence-row select:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-soft); }
+.group-attendance-prices .price-input-wrap i,.group-absence-row .price-input-wrap i { right: 9px; font-size: 9px; }
+.group-attendance-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; padding-top: 13px; border-top: 1px solid var(--line); }
+.group-attendance-grid button { display: flex; min-height: 66px; align-items: center; justify-content: center; flex-direction: column; gap: 4px; padding: 10px; border: 1px solid transparent; border-radius: 12px; cursor: pointer; transition: transform .15s ease,box-shadow .15s ease,background .15s ease; }
+.group-attendance-grid button:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(62,45,32,.08); }
+.group-attendance-grid button.attending { border-color: #b9e4ca; color: #286849; background: #e2f6ea; }
+.group-attendance-grid button.absent { border-color: #efc5ca; color: #8a444c; background: #fde8ea; }
+.group-attendance-grid strong { overflow: hidden; max-width: 100%; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.group-attendance-grid small { font-size: 7px; opacity: .72; }
+.group-absence-details { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.group-absence-details h4 { margin: 0 0 10px; color: #554941; font-size: 11px; }
+.group-absence-row { display: grid; align-items: end; grid-template-columns: minmax(130px,1fr) 120px 155px; gap: 10px; padding: 10px; border: 1px solid #f0d2d5; border-radius: 11px; background: #fff8f8; }
+.group-absence-row + .group-absence-row { margin-top: 8px; }
+.group-absence-row > strong { align-self: center; overflow: hidden; color: #754148; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.group-absence-row label { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+.group-absence-row label > span { color: var(--muted); font-size: 7px; font-weight: 700; }
 .lesson-cancellation-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 9px; padding: 9px 12px; border: 1px solid #eadfda; border-radius: 10px; color: #7f736c; background: #fff9f6; font-size: 9px; }
 .lesson-cancellation-summary strong { color: #5d5049; }
 .lesson-form-error { margin: 10px 0 0; color: var(--red); font-size: 9px; line-height: 1.45; }
@@ -1286,6 +1315,12 @@ input,select,textarea { min-width: 0; }
   .lesson-modal-header,.student-modal-header,.group-modal-header,.lesson-cancel-header,.lesson-reschedule-header { flex: 0 0 auto; padding: 18px 17px 15px; }
   .lesson-modal form,.student-modal form,.group-modal form,.lesson-cancel-dialog form,.lesson-reschedule-dialog form { padding-right: 17px; padding-left: 17px; }
   .lesson-modal-footer,.student-modal-footer,.group-modal-footer,.lesson-cancel-actions,.lesson-reschedule-actions { padding-bottom: max(0px,env(safe-area-inset-bottom)); }
+  .group-lesson-attendance-section { padding: 13px; }
+  .group-attendance-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .group-attendance-prices { grid-template-columns: 1fr; }
+  .group-attendance-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .group-absence-row { grid-template-columns: 1fr 1fr; }
+  .group-absence-row > strong { grid-column: 1/-1; }
   .student-profile-panel,.group-profile-panel { width: 100%; max-width: none; padding-bottom: max(28px,env(safe-area-inset-bottom)); }
   .student-panel-topbar,.group-panel-topbar { padding-top: max(17px,env(safe-area-inset-top)); }
 
@@ -1308,6 +1343,9 @@ input,select,textarea { min-width: 0; }
   .lesson-cancellation-summary { align-items: flex-start; flex-direction: column; }
   .lesson-cancel-copy { text-align: left; }
   .lesson-reschedule-copy { text-align: left; }
+  .group-attendance-grid { grid-template-columns: 1fr; }
+  .group-absence-row { grid-template-columns: 1fr; }
+  .group-absence-row > strong { grid-column: auto; }
 }
 
 @media (max-height: 620px) and (max-width: 900px) {

@@ -6,6 +6,7 @@ import { Ban, CalendarClock, CheckCircle2, RotateCcw, Trash2, X } from "lucide-r
 import type { Student } from "@/components/students/student-types";
 import type { StudentGroup } from "@/components/groups/group-types";
 import { Button } from "@/components/ui/button";
+import type { LessonAttendance, LessonAttendanceInput, LessonAbsenceReason } from "@/types/lesson-attendance";
 import type { CalendarLesson, LessonCancellationReason, LessonStatus } from "./calendar-types";
 import { lessonStatusLabels, primaryLessonStatuses } from "./calendar-types";
 import { formatLessonEnd, timeToMinutes } from "./date-utils";
@@ -43,22 +44,33 @@ const cancellationReasonOptions: { value: LessonCancellationReason | ""; label: 
   { value: "holiday", label: "Праздник" },
 ];
 
+const absenceReasonOptions: { value: LessonAbsenceReason | ""; label: string }[] = [
+  { value: "", label: "Не указана" },
+  { value: "illness", label: "Болезнь" },
+  { value: "absence", label: "Пропуск" },
+  { value: "holiday", label: "Праздник" },
+  { value: "other", label: "Другое" },
+];
+
 type CalendarLessonDetailsModalProps = {
   lesson: CalendarLesson;
   students: Student[];
   groups: StudentGroup[];
+  attendance: LessonAttendance[];
+  isAttendanceLoading: boolean;
   isMutating: boolean;
   error: string | null;
   onClose: () => void;
-  onUpdate: (draft: CalendarLessonEditDraft) => Promise<void>;
+  onUpdate: (draft: CalendarLessonEditDraft, attendance: LessonAttendanceInput[]) => Promise<void>;
   onCancelLesson: (draft: CalendarLessonCancelDraft) => Promise<void>;
   onReschedule: (draft: CalendarLessonRescheduleDraft) => Promise<void>;
-  onStatusChange: (status: LessonStatus) => Promise<void>;
+  onStatusChange: (status: LessonStatus, attendance: LessonAttendanceInput[]) => Promise<void>;
   onDelete: () => Promise<void>;
 };
 
-export function CalendarLessonDetailsModal({ lesson, students, groups, isMutating, error, onClose, onUpdate, onCancelLesson, onReschedule, onStatusChange, onDelete }: CalendarLessonDetailsModalProps) {
+export function CalendarLessonDetailsModal({ lesson, students, groups, attendance, isAttendanceLoading, isMutating, error, onClose, onUpdate, onCancelLesson, onReschedule, onStatusChange, onDelete }: CalendarLessonDetailsModalProps) {
   const [draft, setDraft] = useState<CalendarLessonEditDraft>(() => toEditDraft(lesson));
+  const [attendanceDraft, setAttendanceDraft] = useState<LessonAttendanceInput[]>(() => toAttendanceDraft(lesson, attendance, groups));
   const [validationError, setValidationError] = useState<string | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState<LessonCancellationReason | "">(lesson.cancellationReason ?? "");
@@ -70,13 +82,14 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
 
   useEffect(() => {
     setDraft(toEditDraft(lesson));
+    setAttendanceDraft(toAttendanceDraft(lesson, attendance, groups));
     setValidationError(null);
     setCancelReason(lesson.cancellationReason ?? "");
     setCancelFee(lesson.cancellationFee ?? 0);
     setRescheduleDraft(toRescheduleDraft(lesson));
     if (lesson.status === "cancelled") setCancelDialogOpen(false);
     if (lesson.status === "rescheduled") setRescheduleDialogOpen(false);
-  }, [lesson]);
+  }, [attendance, groups, lesson]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -118,6 +131,7 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
       endTime: formatLessonEnd(current.startTime, student?.lessonDuration ?? 60),
       price: student?.lessonPrice ?? current.price,
     }));
+    setAttendanceDraft([]);
     setValidationError(null);
   }
 
@@ -131,6 +145,33 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
       endTime: formatLessonEnd(current.startTime, group?.lessonDuration ?? 60),
       price: group?.lessonPrice ?? current.price,
     }));
+    setAttendanceDraft(toGroupAttendanceDraft(group, group?.lessonPrice ?? 0));
+    setValidationError(null);
+  }
+
+  function updateLessonPrice(price: number) {
+    update("price", price);
+    if (draft.targetType === "group") {
+      setAttendanceDraft((current) => current.map((entry) => ({ ...entry, price })));
+    }
+  }
+
+  function updateAttendance(studentId: string, changes: Partial<LessonAttendanceInput>) {
+    setAttendanceDraft((current) => current.map((entry) => (
+      entry.studentId === studentId ? { ...entry, ...changes } : entry
+    )));
+    setValidationError(null);
+  }
+
+  function toggleAttendance(studentId: string) {
+    setAttendanceDraft((current) => current.map((entry) => entry.studentId === studentId
+      ? {
+          ...entry,
+          attended: !entry.attended,
+          absenceReason: entry.attended ? entry.absenceReason : null,
+          absenceFee: entry.attended ? entry.absenceFee : 0,
+        }
+      : entry));
     setValidationError(null);
   }
 
@@ -145,7 +186,12 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
       setValidationError(nextError);
       return;
     }
-    await onUpdate(draft);
+    const attendanceError = validateAttendanceDraft(draft, attendanceDraft);
+    if (attendanceError) {
+      setValidationError(attendanceError);
+      return;
+    }
+    await onUpdate(draft, draft.targetType === "group" ? attendanceDraft : []);
   }
 
   async function submitCancellation() {
@@ -169,7 +215,7 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
 
   return createPortal(
     <div className="lesson-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !isMutating && onClose()}>
-      <section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="calendar-lesson-details-title">
+      <section className={`lesson-modal ${draft.targetType === "group" ? "group-lesson-modal" : ""}`} role="dialog" aria-modal="true" aria-labelledby="calendar-lesson-details-title">
         <div className="lesson-modal-header">
           <div><span>РЕДАКТИРОВАНИЕ УРОКА</span><h2 id="calendar-lesson-details-title">{lesson.participant}</h2></div>
           <button type="button" className="icon-button" aria-label="Закрыть" onClick={onClose} disabled={isMutating}><X size={20} /></button>
@@ -188,17 +234,63 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
             )}
             <label><span>Дата</span><input type="date" value={draft.date} onChange={(event) => update("date", event.target.value)} required disabled={isMutating} /></label>
             <label><span>Время начала</span><input type="time" min="08:00" max="21:30" step="60" value={draft.startTime} onChange={(event) => updateStartTime(event.target.value)} required disabled={isMutating} /></label>
-            <label><span>Стоимость</span><div className="price-input-wrap"><input type="number" min="0" step="1" value={draft.price} onChange={(event) => update("price", Number(event.target.value))} required disabled={isMutating} /><i>₽</i></div></label>
+            <label><span>{draft.targetType === "group" ? "Стоимость для одного ученика" : "Стоимость"}</span><div className="price-input-wrap"><input type="number" min="0" step="1" value={draft.price} onChange={(event) => updateLessonPrice(Number(event.target.value))} required disabled={isMutating} /><i>₽</i></div></label>
             <label><span>Время окончания</span><input type="time" min="08:01" max="22:00" step="60" value={draft.endTime} onChange={(event) => update("endTime", event.target.value)} required disabled={isMutating} /></label>
             <label className="lesson-form-full"><span>Статус</span><select value={draft.status} onChange={(event) => update("status", event.target.value as LessonStatus)} disabled={isMutating}>{editableLessonStatuses.map((value) => <option value={value} key={value}>{lessonStatusLabels[value]}</option>)}</select></label>
             <label className="lesson-form-full"><span>Заметки</span><textarea rows={3} value={draft.notes} onChange={(event) => update("notes", event.target.value)} disabled={isMutating} /></label>
           </div>
           <div className="lesson-form-summary"><span>{draft.startTime}–{draft.endTime}</span><strong>{draft.price.toLocaleString("ru-RU")} ₽</strong></div>
+          {draft.targetType === "group" && (
+            <section className="group-lesson-attendance-section">
+              <div className="group-attendance-heading">
+                <div><span>УЧАСТНИКИ ГРУППЫ</span><h3>Стоимость и посещаемость</h3></div>
+                <small><i /> будет <i /> не будет</small>
+              </div>
+
+              {isAttendanceLoading && <p className="group-attendance-loading">Загружаем участников…</p>}
+              {!isAttendanceLoading && attendanceDraft.length === 0 && <p className="group-attendance-loading">В этой группе пока нет учеников.</p>}
+
+              {attendanceDraft.length > 0 && (
+                <>
+                  <div className="group-attendance-prices">
+                    {attendanceDraft.map((entry) => (
+                      <label key={`price-${entry.studentId}`}>
+                        <span>{studentDisplayName(entry.studentId, students)}</span>
+                        <div className="price-input-wrap"><input type="number" min="0" step="1" value={entry.price} onChange={(event) => updateAttendance(entry.studentId, { price: Number(event.target.value) })} disabled={isMutating} /><i>₽</i></div>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="group-attendance-grid" aria-label="Посещаемость учеников">
+                    {attendanceDraft.map((entry) => (
+                      <button type="button" className={entry.attended ? "attending" : "absent"} onClick={() => toggleAttendance(entry.studentId)} disabled={isMutating} key={`attendance-${entry.studentId}`}>
+                        <strong>{studentDisplayName(entry.studentId, students)}</strong>
+                        <small>{entry.attended ? "Будет на уроке" : "Не будет"}</small>
+                      </button>
+                    ))}
+                  </div>
+
+                  {attendanceDraft.some((entry) => !entry.attended) && (
+                    <div className="group-absence-details">
+                      <h4>Кого не будет: штраф и причина</h4>
+                      {attendanceDraft.filter((entry) => !entry.attended).map((entry) => (
+                        <div className="group-absence-row" key={`absence-${entry.studentId}`}>
+                          <strong>{studentDisplayName(entry.studentId, students)}</strong>
+                          <label><span>Штраф</span><div className="price-input-wrap"><input type="number" min="0" step="1" value={entry.absenceFee} onChange={(event) => updateAttendance(entry.studentId, { absenceFee: Number(event.target.value) })} disabled={isMutating} /><i>₽</i></div></label>
+                          <label><span>Причина</span><select value={entry.absenceReason ?? ""} onChange={(event) => updateAttendance(entry.studentId, { absenceReason: (event.target.value || null) as LessonAbsenceReason | null })} disabled={isMutating}>{absenceReasonOptions.map((option) => <option value={option.value} key={option.value || "none"}>{option.label}</option>)}</select></label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </section>
+          )}
           {normalizeStatus(lesson.status) === "cancelled" && <div className="lesson-cancellation-summary"><span>Причина: <strong>{cancellationReasonLabel(lesson.cancellationReason)}</strong></span><span>Штраф: <strong>{(lesson.cancellationFee ?? 0).toLocaleString("ru-RU")} ₽</strong></span></div>}
           {(validationError || error) && <p className="lesson-form-error" role="alert">{validationError || error}</p>}
           <div className="lesson-modal-footer lesson-editor-actions">
             <div className="lesson-editor-status-actions">
-              <Button type="button" variant="secondary" icon={<CheckCircle2 size={16} />} onClick={() => void onStatusChange("completed")} disabled={isMutating || lesson.status === "completed"}>Провести урок</Button>
+              <Button type="button" variant="secondary" icon={<CheckCircle2 size={16} />} onClick={() => void onStatusChange("completed", attendanceDraft)} disabled={isMutating || lesson.status === "completed"}>Провести урок</Button>
               {normalizeStatus(lesson.status) !== "cancelled" && lesson.status !== "completed" && <Button type="button" variant="secondary" icon={<CalendarClock size={16} />} onClick={() => { setRescheduleValidationError(null); setRescheduleDraft(toRescheduleDraft(lesson)); setRescheduleDialogOpen(true); }} disabled={isMutating}>Перенести урок</Button>}
               {normalizeStatus(lesson.status) === "cancelled" ? (
                 <Button
@@ -206,7 +298,7 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
                   variant="secondary"
                   icon={<RotateCcw size={16} />}
                   onClick={() => {
-                    if (window.confirm("Вернуть это занятие в расписание?")) void onStatusChange("scheduled");
+                    if (window.confirm("Вернуть это занятие в расписание?")) void onStatusChange("scheduled", attendanceDraft);
                   }}
                   disabled={isMutating}
                 >
@@ -292,6 +384,48 @@ function toEditDraft(lesson: CalendarLesson): CalendarLessonEditDraft {
   };
 }
 
+function toAttendanceDraft(
+  lesson: CalendarLesson,
+  attendance: LessonAttendance[],
+  groups: StudentGroup[],
+): LessonAttendanceInput[] {
+  if (!lesson.groupId) return [];
+  const saved = attendance.map((entry) => ({
+    studentId: entry.studentId,
+    attended: entry.attended,
+    price: entry.price,
+    absenceReason: entry.absenceReason,
+    absenceFee: entry.absenceFee,
+  }));
+  const savedIds = new Set(saved.map((entry) => entry.studentId));
+  const group = groups.find((entry) => entry.id === lesson.groupId);
+  const missing = (group?.studentIds ?? [])
+    .filter((studentId) => !savedIds.has(studentId))
+    .map((studentId) => ({
+      studentId,
+      attended: true,
+      price: lesson.price,
+      absenceReason: null,
+      absenceFee: 0,
+    }));
+  return [...saved, ...missing];
+}
+
+function toGroupAttendanceDraft(group: StudentGroup | undefined, price: number): LessonAttendanceInput[] {
+  return (group?.studentIds ?? []).map((studentId) => ({
+    studentId,
+    attended: true,
+    price,
+    absenceReason: null,
+    absenceFee: 0,
+  }));
+}
+
+function studentDisplayName(studentId: string, students: Student[]): string {
+  const student = students.find((entry) => entry.id === studentId);
+  return student ? `${student.firstName} ${student.lastName}` : "Ученик группы";
+}
+
 function toRescheduleDraft(lesson: CalendarLesson): CalendarLessonRescheduleDraft {
   return {
     date: lesson.date,
@@ -323,5 +457,14 @@ function validateDraft(draft: CalendarLessonEditDraft, students: Student[], grou
   if (endMinutes <= startMinutes) return "Время окончания должно быть позже времени начала.";
   if (startMinutes < 8 * 60 || endMinutes > 22 * 60) return "Урок должен находиться в пределах календаря с 08:00 до 22:00.";
   if (!Number.isFinite(draft.price) || draft.price < 0) return "Стоимость должна быть неотрицательным числом.";
+  return null;
+}
+
+function validateAttendanceDraft(draft: CalendarLessonEditDraft, attendance: LessonAttendanceInput[]): string | null {
+  if (draft.targetType !== "group") return null;
+  for (const entry of attendance) {
+    if (!Number.isInteger(entry.price) || entry.price < 0) return "Стоимость для каждого ученика должна быть целым неотрицательным числом.";
+    if (!Number.isInteger(entry.absenceFee) || entry.absenceFee < 0) return "Штраф за отсутствие должен быть целым неотрицательным числом.";
+  }
   return null;
 }

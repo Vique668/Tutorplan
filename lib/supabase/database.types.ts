@@ -314,6 +314,60 @@ export type Database = {
           },
         ];
       };
+      lesson_attendance: {
+        Row: {
+          absence_fee: number;
+          absence_reason: string | null;
+          attended: boolean;
+          created_at: string;
+          id: string;
+          lesson_id: string;
+          price: number;
+          student_id: string;
+          tutor_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          absence_fee?: number;
+          absence_reason?: string | null;
+          attended?: boolean;
+          created_at?: string;
+          id?: string;
+          lesson_id: string;
+          price?: number;
+          student_id: string;
+          tutor_id?: string;
+          updated_at?: string;
+        };
+        Update: {
+          absence_fee?: number;
+          absence_reason?: string | null;
+          attended?: boolean;
+          created_at?: string;
+          id?: string;
+          lesson_id?: string;
+          price?: number;
+          student_id?: string;
+          tutor_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lesson_attendance_lesson_tenant_fk";
+            columns: ["lesson_id", "tutor_id"];
+            isOneToOne: false;
+            referencedRelation: "lessons";
+            referencedColumns: ["id", "tutor_id"];
+          },
+          {
+            foreignKeyName: "lesson_attendance_student_tenant_fk";
+            columns: ["student_id", "tutor_id"];
+            isOneToOne: false;
+            referencedRelation: "students";
+            referencedColumns: ["id", "tutor_id"];
+          },
+        ];
+      };
         lessons: {
           Row: {
             cancellation_fee: number;
@@ -816,6 +870,10 @@ export type Database = {
           p_subject: string | null;
         };
         Returns: string;
+      };
+      save_group_lesson_attendance: {
+        Args: { p_entries: Json; p_lesson_id: string };
+        Returns: Database["public"]["Tables"]["lesson_attendance"]["Row"][];
       };
       save_student_with_parent: {
         Args: {

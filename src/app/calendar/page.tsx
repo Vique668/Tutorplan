@@ -40,6 +40,7 @@ import type { Student } from "@/components/students/student-types";
 import type { StudentGroup } from "@/components/groups/group-types";
 import { Button } from "@/components/ui/button";
 import type { Lesson } from "@/types/lesson";
+import type { LessonAttendance, LessonAttendanceInput } from "@/types/lesson-attendance";
 import type { OtherEvent } from "@/types/other-event";
 import { getZonedParts, zonedDateKey, zonedLocalToIso } from "@/lib/date-time";
 import {
@@ -53,6 +54,7 @@ import { createOtherEvent, deleteOtherEvent, getOtherEvents, updateOtherEvent } 
 import { getStudents } from "../../../lib/supabase/students";
 import { getGroups } from "../../../lib/supabase/groups";
 import { getTutorTimezone } from "../../../lib/supabase/settings";
+import { getLessonAttendance, saveLessonAttendance } from "../../../lib/supabase/lesson-attendance";
 
 const views: { value: CalendarView; label: string }[] = [
   { value: "day", label: "День" },
@@ -96,6 +98,8 @@ export default function CalendarPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [selectedLesson, setSelectedLesson] = useState<CalendarLesson | null>(null);
+  const [selectedLessonAttendance, setSelectedLessonAttendance] = useState<LessonAttendance[]>([]);
+  const [isAttendanceLoading, setIsAttendanceLoading] = useState(false);
   const [isLessonMutating, setIsLessonMutating] = useState(false);
   const [lessonActionError, setLessonActionError] = useState<string | null>(null);
   const [selectedOtherEvent, setSelectedOtherEvent] = useState<OtherEvent | null>(null);
@@ -278,7 +282,17 @@ export default function CalendarPage() {
 
   function openLessonDetails(lesson: CalendarLesson) {
     setLessonActionError(null);
+    setSelectedLessonAttendance([]);
     setSelectedLesson(lesson);
+    if (lesson.groupId) {
+      setIsAttendanceLoading(true);
+      void getLessonAttendance(lesson.id)
+        .then(setSelectedLessonAttendance)
+        .catch((error) => setLessonActionError(getErrorMessage(error)))
+        .finally(() => setIsAttendanceLoading(false));
+    } else {
+      setIsAttendanceLoading(false);
+    }
   }
 
   function openOtherEventDetails(calendarEvent: CalendarLesson) {
@@ -327,7 +341,7 @@ export default function CalendarPage() {
     }
   }
 
-  async function saveSelectedLesson(draft: CalendarLessonEditDraft) {
+  async function saveSelectedLesson(draft: CalendarLessonEditDraft, attendance: LessonAttendanceInput[]) {
     if (!selectedLesson) return;
     if (!confirmCalendarCollision(draft.date, draft.startTime, draft.endTime, selectedLesson.id, "lesson")) return;
 
@@ -345,6 +359,12 @@ export default function CalendarPage() {
         status: draft.status,
         notes: draft.notes,
       });
+      if (draft.targetType === "group") {
+        const savedAttendance = await saveLessonAttendance(selectedLesson.id, attendance);
+        setSelectedLessonAttendance(savedAttendance);
+      } else {
+        setSelectedLessonAttendance([]);
+      }
       const calendarLesson = toCalendarLesson(updatedLesson, students, groups, timezone);
       setLessons((current) => current.map((lesson) => lesson.id === calendarLesson.id ? calendarLesson : lesson));
       setSelectedLesson(calendarLesson);
@@ -398,12 +418,16 @@ export default function CalendarPage() {
     }
   }
 
-  async function changeSelectedLessonStatus(status: Lesson["status"]) {
+  async function changeSelectedLessonStatus(status: Lesson["status"], attendance: LessonAttendanceInput[]) {
     if (!selectedLesson) return;
     setIsLessonMutating(true);
     setLessonActionError(null);
     try {
       const updated = await updateLesson(selectedLesson.id, { status });
+      if (selectedLesson.groupId && attendance.length > 0) {
+        const savedAttendance = await saveLessonAttendance(selectedLesson.id, attendance);
+        setSelectedLessonAttendance(savedAttendance);
+      }
       const calendarLesson = toCalendarLesson(updated, students, groups, timezone);
       setLessons((current) => current.map((lesson) => lesson.id === calendarLesson.id ? calendarLesson : lesson));
       setSelectedLesson(calendarLesson);
@@ -512,9 +536,11 @@ export default function CalendarPage() {
           lesson={selectedLesson}
           students={students}
           groups={groups}
+          attendance={selectedLessonAttendance}
+          isAttendanceLoading={isAttendanceLoading}
           isMutating={isLessonMutating}
           error={lessonActionError}
-          onClose={() => { if (!isLessonMutating) setSelectedLesson(null); }}
+          onClose={() => { if (!isLessonMutating) { setSelectedLesson(null); setSelectedLessonAttendance([]); } }}
           onUpdate={saveSelectedLesson}
           onCancelLesson={cancelSelectedLesson}
           onReschedule={rescheduleSelectedLesson}
