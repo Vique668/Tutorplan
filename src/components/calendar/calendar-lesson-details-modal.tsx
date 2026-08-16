@@ -188,8 +188,8 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
             )}
             <label><span>Дата</span><input type="date" value={draft.date} onChange={(event) => update("date", event.target.value)} required disabled={isMutating} /></label>
             <label><span>Время начала</span><input type="time" min="08:00" max="21:30" step="60" value={draft.startTime} onChange={(event) => updateStartTime(event.target.value)} required disabled={isMutating} /></label>
-            <label><span>Время окончания</span><input type="time" min="08:01" max="22:00" step="60" value={draft.endTime} onChange={(event) => update("endTime", event.target.value)} required disabled={isMutating} /></label>
             <label><span>Стоимость</span><div className="price-input-wrap"><input type="number" min="0" step="1" value={draft.price} onChange={(event) => update("price", Number(event.target.value))} required disabled={isMutating} /><i>₽</i></div></label>
+            <label><span>Время окончания</span><input type="time" min="08:01" max="22:00" step="60" value={draft.endTime} onChange={(event) => update("endTime", event.target.value)} required disabled={isMutating} /></label>
             <label className="lesson-form-full"><span>Статус</span><select value={draft.status} onChange={(event) => update("status", event.target.value as LessonStatus)} disabled={isMutating}>{editableLessonStatuses.map((value) => <option value={value} key={value}>{lessonStatusLabels[value]}</option>)}</select></label>
             <label className="lesson-form-full"><span>Заметки</span><textarea rows={3} value={draft.notes} onChange={(event) => update("notes", event.target.value)} disabled={isMutating} /></label>
           </div>
