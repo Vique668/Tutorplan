@@ -776,6 +776,10 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: string | null;
       };
+      delete_student: {
+        Args: { p_student_id: string };
+        Returns: string;
+      };
       generate_active_lesson_series_range: {
         Args: { p_from_date: string; p_to_date: string };
         Returns: undefined;

@@ -154,7 +154,7 @@ export default function StudentDetailsPage() {
   }
 
   async function removeStudent() {
-    if (!student || !window.confirm("Удалить ученика? Он исчезнет из списков, а история занятий сохранится.")) return;
+    if (!student || !window.confirm("Удалить ученика? Без истории запись будет удалена полностью; существующие занятия и расчёты сохранятся.")) return;
 
     setIsDeleting(true);
     setActionError(null);

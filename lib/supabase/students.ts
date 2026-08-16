@@ -103,9 +103,9 @@ export async function archiveStudent(
 }
 
 export async function deleteStudent(studentId: string): Promise<void> {
-  const { data, error } = await createClient().rpc("soft_delete_student", { p_student_id: studentId });
+  const { data, error } = await createClient().rpc("delete_student", { p_student_id: studentId });
   if (error) throw error;
-  if (String(data) !== studentId) throw new Error("Supabase did not delete the student");
+  if (data !== "hard" && data !== "soft") throw new Error("Supabase did not delete the student");
 }
 
 async function getStudentBalances(): Promise<Map<string, number>> {
