@@ -13,6 +13,12 @@ import {
   type CalendarLessonEditDraft,
   type CalendarLessonRescheduleDraft,
 } from "@/components/calendar/calendar-lesson-details-modal";
+import {
+  CalendarFiltersPanel,
+  type CalendarFilterDraft,
+  type CalendarFilterSelection,
+  type CalendarLessonTypeFilter,
+} from "@/components/calendar/calendar-filters-panel";
 import { CalendarOtherEventDetailsModal } from "@/components/calendar/calendar-other-event-details-modal";
 import type { CalendarOtherEventDraft } from "@/components/calendar/calendar-other-event-form-fields";
 import type {
@@ -57,6 +63,14 @@ const views: { value: CalendarView; label: string }[] = [
 
 const lessonColors: LessonColor[] = ["apricot", "sage", "sky", "rose", "lavender"];
 
+function createDefaultCalendarFilters(): CalendarFilterSelection {
+  return {
+    studentIds: [],
+    statuses: ["scheduled", "completed", "cancelled"],
+    lessonTypes: ["individual", "pair", "group"],
+  };
+}
+
 type CreateModalState = {
   date: string;
   startTime: string;
@@ -73,6 +87,13 @@ export default function CalendarPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<LessonStatusFilter>("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [calendarFilters, setCalendarFilters] = useState<CalendarFilterSelection>(createDefaultCalendarFilters);
+  const [filterDraft, setFilterDraft] = useState<CalendarFilterDraft>(() => ({
+    ...createDefaultCalendarFilters(),
+    period: "week",
+    customDate: toDateKey(new Date()),
+  }));
   const [createModal, setCreateModal] = useState<CreateModalState | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -116,20 +137,74 @@ export default function CalendarPage() {
     view === "day" ? [anchorDate] : getWeekDays(anchorDate)
   ), [anchorDate, view]);
   const calendarItems = useMemo(() => [...lessons, ...otherEvents.map(toCalendarOtherEvent)], [lessons, otherEvents]);
+  const filteredCalendarItems = useMemo(() => (
+    calendarItems.filter((item) => matchesCalendarFilters(item, calendarFilters, groups))
+  ), [calendarFilters, calendarItems, groups]);
   const rangeLabel = getDateRangeLabel(anchorDate, view);
   const visibleLessons = useMemo(() => {
     if (view === "month") {
-      return calendarItems.filter((lesson) => {
+      return filteredCalendarItems.filter((lesson) => {
         const [year, month] = lesson.date.split("-").map(Number);
         return year === anchorDate.getFullYear() && month === anchorDate.getMonth() + 1;
       });
     }
     const keys = new Set(visibleDates.map(toDateKey));
-    return calendarItems.filter((lesson) => keys.has(lesson.date));
-  }, [anchorDate, calendarItems, view, visibleDates]);
+    return filteredCalendarItems.filter((lesson) => keys.has(lesson.date));
+  }, [anchorDate, filteredCalendarItems, view, visibleDates]);
   const displayedLessons = view === "week" && statusFilter !== "all"
     ? visibleLessons.filter((lesson) => lesson.kind === "other" || lesson.status === statusFilter)
     : visibleLessons;
+  const activeFilterCount = (calendarFilters.studentIds.length > 0 ? 1 : 0)
+    + (calendarFilters.statuses.length < 3 ? 1 : 0)
+    + (calendarFilters.lessonTypes.length < 3 ? 1 : 0);
+
+  function openFilters() {
+    const todayKey = zonedDateKey(new Date(), timezone);
+    const anchorKey = toDateKey(anchorDate);
+    const period = view === "month"
+      ? "month"
+      : view === "week"
+        ? "week"
+        : anchorKey === todayKey ? "today" : "custom";
+
+    setFilterDraft({
+      studentIds: [...calendarFilters.studentIds],
+      statuses: [...calendarFilters.statuses],
+      lessonTypes: [...calendarFilters.lessonTypes],
+      period,
+      customDate: period === "custom" ? anchorKey : todayKey,
+    });
+    setFiltersOpen(true);
+  }
+
+  function resetFilterDraft() {
+    setFilterDraft({
+      ...createDefaultCalendarFilters(),
+      period: "week",
+      customDate: zonedDateKey(new Date(), timezone),
+    });
+  }
+
+  function applyFilters() {
+    setCalendarFilters({
+      studentIds: [...filterDraft.studentIds],
+      statuses: [...filterDraft.statuses],
+      lessonTypes: [...filterDraft.lessonTypes],
+    });
+    setStatusFilter("all");
+
+    if (filterDraft.period === "today") {
+      setView("day");
+      setAnchorDate(dateKeyToDate(zonedDateKey(new Date(), timezone)));
+    } else if (filterDraft.period === "custom") {
+      setView("day");
+      setAnchorDate(dateKeyToDate(filterDraft.customDate));
+    } else {
+      setView(filterDraft.period);
+    }
+
+    setFiltersOpen(false);
+  }
 
   function movePeriod(direction: -1 | 1) {
     setAnchorDate((current) => {
@@ -385,7 +460,9 @@ export default function CalendarPage() {
       <div className="calendar-page-header">
         <div><p className="page-eyebrow">МОЁ РАСПИСАНИЕ</p><h1>Календарь</h1></div>
         <div className="calendar-header-actions">
-          <Button variant="secondary" icon={<SlidersHorizontal size={17} />}>Фильтры</Button>
+          <Button variant="secondary" icon={<SlidersHorizontal size={17} />} onClick={openFilters}>
+            Фильтры{activeFilterCount > 0 && <span className="calendar-filter-count">{activeFilterCount}</span>}
+          </Button>
           <Button icon={<CalendarPlus size={18} />} onClick={() => openCreate()}>Добавить урок</Button>
         </div>
       </div>
@@ -433,7 +510,7 @@ export default function CalendarPage() {
         {!isLoading && !loadError && displayedLessons.length === 0 && <div className="calendar-data-state calendar-data-empty"><CalendarPlus size={18} /><span>В выбранном периоде событий пока нет. Нажмите «Добавить урок» или выберите свободное время.</span></div>}
 
         {view === "month" ? (
-          <MonthCalendar anchorDate={anchorDate} lessons={calendarItems} onEmptyDateClick={(date) => openCreate(date)} onLessonClick={openLessonDetails} onOtherEventClick={openOtherEventDetails} />
+          <MonthCalendar anchorDate={anchorDate} lessons={filteredCalendarItems} onEmptyDateClick={(date) => openCreate(date)} onLessonClick={openLessonDetails} onOtherEventClick={openOtherEventDetails} />
         ) : (
           <WeekCalendar dates={visibleDates} lessons={view === "week" ? displayedLessons : visibleLessons} onEmptySlotClick={openCreate} onLessonClick={openLessonDetails} onOtherEventClick={openOtherEventDetails} />
         )}
@@ -477,8 +554,42 @@ export default function CalendarPage() {
           onDelete={deleteSelectedOtherEvent}
         />
       )}
+      {filtersOpen && (
+        <CalendarFiltersPanel
+          students={students}
+          draft={filterDraft}
+          onChange={setFilterDraft}
+          onClose={() => setFiltersOpen(false)}
+          onReset={resetFilterDraft}
+          onApply={applyFilters}
+        />
+      )}
     </div>
   );
+}
+
+function matchesCalendarFilters(item: CalendarLesson, filters: CalendarFilterSelection, groups: StudentGroup[]): boolean {
+  if (item.kind === "other") {
+    return filters.studentIds.length === 0 && filters.lessonTypes.length === 3;
+  }
+
+  if (filters.studentIds.length > 0) {
+    const matchesStudent = item.studentId
+      ? filters.studentIds.includes(item.studentId)
+      : groups.some((group) => group.id === item.groupId && group.studentIds.some((id) => filters.studentIds.includes(id)));
+    if (!matchesStudent) return false;
+  }
+
+  if (["scheduled", "completed", "cancelled"].includes(item.status)
+    && !filters.statuses.includes(item.status as CalendarFilterSelection["statuses"][number])) return false;
+
+  return filters.lessonTypes.includes(getCalendarLessonType(item, groups));
+}
+
+function getCalendarLessonType(item: CalendarLesson, groups: StudentGroup[]): CalendarLessonTypeFilter {
+  if (item.studentId) return "individual";
+  const group = groups.find((candidate) => candidate.id === item.groupId);
+  return group?.studentIds.length === 2 ? "pair" : "group";
 }
 
 function toCalendarLesson(lesson: Lesson, students: Student[], groups: StudentGroup[], timezone: string): CalendarLesson {
