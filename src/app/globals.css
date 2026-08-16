@@ -271,27 +271,16 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
 .calendar-view-selector { display: inline-flex; padding: 4px; border-radius: 12px; background: #f3f0ed; }
 .calendar-view-selector button { min-width: 70px; height: 31px; padding: 0 13px; border: 0; border-radius: 9px; color: #8c837d; background: transparent; font-size: 10px; font-weight: 600; cursor: pointer; }
 .calendar-view-selector button.active { color: #74401d; background: white; box-shadow: 0 2px 8px rgba(67,45,29,.09); font-weight: 800; }
-.calendar-legend { display: flex; min-height: 43px; align-items: center; gap: 18px; padding: 0 20px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 9px; }
-.calendar-legend > span { display: inline-flex; align-items: center; gap: 6px; }
 .legend-dot { width: 7px; height: 7px; border-radius: 50%; background: #f0a05c; }
 .legend-group { background: #927fd2; }
-.calendar-legend .week-load { margin-left: auto; color: #9f9690; }
 .calendar-data-state { display: flex; min-height: 38px; align-items: center; gap: 8px; padding: 8px 20px; border-bottom: 1px solid var(--line); color: var(--muted); background: #fdfcfb; font-size: 9px; }
 .calendar-data-state svg { flex: 0 0 auto; }
 .calendar-data-error { color: #9d4036; background: #fff4f1; }
 .calendar-data-empty { color: var(--muted); background: color-mix(in srgb,var(--accent-pale) 45%,white); }
 .calendar-data-state button { margin-left: auto; border: 0; color: inherit; background: transparent; font-size: 9px; font-weight: 700; cursor: pointer; text-decoration: underline; }
-.calendar-status-filter { display: flex; align-items: center; gap: 5px; }
-.calendar-status-filter > span { margin-right: 3px; color: #9a918a; font-size: 8px; font-weight: 700; text-transform: uppercase; }
-.calendar-status-filter button { height: 27px; padding: 0 9px; border: 1px solid transparent; border-radius: 8px; color: #8b837d; background: transparent; font-size: 8px; font-weight: 700; cursor: pointer; }
-.calendar-status-filter button:hover { background: #f5f2ef; }
-.calendar-status-filter button.active { color: var(--accent-ink); border-color: var(--line); background: white; box-shadow: 0 2px 6px rgba(62,45,32,.06); }
-.calendar-status-filter button.active.status-scheduled { color: #315a91; border-color: #cddcf1; background: var(--lesson-scheduled-bg); }
-.calendar-status-filter button.active.status-completed { color: #286849; border-color: #c9e6d5; background: var(--lesson-completed-bg); }
-.calendar-status-filter button.active.status-cancelled { color: #696d70; border-color: #d9dcde; background: var(--lesson-cancelled-bg); }
-.calendar-status-filter button.active.status-rescheduled { color: #7d5516; border-color: #efd9ad; background: var(--lesson-rescheduled-bg); }
 .calendar-color-legend { display: flex; min-height: 42px; align-items: center; gap: 18px; padding: 0 20px; overflow-x: auto; border-bottom: 1px solid var(--line); color: #776e68; background: color-mix(in srgb,var(--surface-soft) 72%,white); font-size: 8px; font-weight: 700; scrollbar-width: thin; }
 .calendar-color-legend span { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; white-space: nowrap; }
+.calendar-color-legend .week-load { margin-left: auto; color: #9f9690; font-weight: 600; }
 .calendar-color-legend i { width: 22px; height: 10px; border: 1px solid transparent; border-radius: 4px; }
 .calendar-color-scheduled { border-color: #cddcf1 !important; background: var(--lesson-scheduled-bg); }
 .calendar-color-completed { border-color: #c9e6d5 !important; background: var(--lesson-completed-bg); }
@@ -1001,10 +990,6 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
   .date-range { margin-left: auto; }
   .calendar-view-selector { width: 100%; }
   .calendar-view-selector button { flex: 1; }
-  .calendar-legend { padding: 0 13px; }
-  .calendar-status-filter { min-width: max-content; }
-  .calendar-legend { overflow-x: auto; }
-  .calendar-legend .week-load { display: none; }
   .tutor-week-header { grid-template-columns: 58px repeat(var(--day-count,7),minmax(124px,1fr)); }
   .tutor-week-body { grid-template-columns: 58px minmax(0,1fr); }
   .tutor-week-calendar { min-width: 930px; }
@@ -1246,7 +1231,6 @@ input,select,textarea { min-width: 0; }
   .date-range strong { font-size: 14px; }
   .date-range span { font-size: 9px; }
   .calendar-view-selector button { min-width: 0; height: 36px; }
-  .calendar-legend { gap: 10px; }
   .tutor-week-scroll,.interactive-month-scroll { overscroll-behavior-x: contain; }
   .tutor-week-calendar { min-width: 1040px; }
   .tutor-week-calendar.tutor-day-calendar { min-width: 520px; }
@@ -1313,7 +1297,6 @@ input,select,textarea { min-width: 0; }
   .page-actions > * { flex-basis: 100%; }
   .week-navigation { grid-template-columns: 40px minmax(78px,auto) 40px; }
   .date-range { grid-column: 1/-1; width: 100%; margin: 2px 0 0; }
-  .calendar-status-filter > span { display: none; }
   .schedule-board-scroll { width: calc(100% + 20px); margin-right: -10px; margin-left: -10px; padding-right: 10px; padding-left: 10px; }
   .schedule-board-column { flex-basis: min(86vw,290px); }
   .student-filter button { min-width: 0; font-size: 9px; }

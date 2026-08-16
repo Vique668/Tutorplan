@@ -25,7 +25,6 @@ import type {
   CalendarLesson,
   CalendarView,
   LessonColor,
-  LessonStatusFilter,
 } from "@/components/calendar/calendar-types";
 import {
   addDays,
@@ -86,7 +85,6 @@ export default function CalendarPage() {
   const [otherEvents, setOtherEvents] = useState<OtherEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<LessonStatusFilter>("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [calendarFilters, setCalendarFilters] = useState<CalendarFilterSelection>(createDefaultCalendarFilters);
   const [filterDraft, setFilterDraft] = useState<CalendarFilterDraft>(() => ({
@@ -151,9 +149,6 @@ export default function CalendarPage() {
     const keys = new Set(visibleDates.map(toDateKey));
     return filteredCalendarItems.filter((lesson) => keys.has(lesson.date));
   }, [anchorDate, filteredCalendarItems, view, visibleDates]);
-  const displayedLessons = view === "week" && statusFilter !== "all"
-    ? visibleLessons.filter((lesson) => lesson.kind === "other" || lesson.status === statusFilter)
-    : visibleLessons;
   const activeFilterCount = (calendarFilters.studentIds.length > 0 ? 1 : 0)
     + (calendarFilters.statuses.length < 3 ? 1 : 0)
     + (calendarFilters.lessonTypes.length < 3 ? 1 : 0);
@@ -191,8 +186,6 @@ export default function CalendarPage() {
       statuses: [...filterDraft.statuses],
       lessonTypes: [...filterDraft.lessonTypes],
     });
-    setStatusFilter("all");
-
     if (filterDraft.period === "today") {
       setView("day");
       setAnchorDate(dateKeyToDate(zonedDateKey(new Date(), timezone)));
@@ -480,22 +473,6 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        <div className="calendar-legend">
-          {view === "week" && (
-            <div className="calendar-status-filter" aria-label="Фильтр по статусу">
-              <span>Статус:</span>
-              {([
-                { value: "all", label: "Все" },
-                { value: "scheduled", label: "Запланировано" },
-                { value: "completed", label: "Проведено" },
-                { value: "cancelled", label: "Отменено" },
-                { value: "rescheduled", label: "Перенесено" },
-              ] as const).map((item) => <button key={item.value} className={statusFilter === item.value ? `active status-${item.value}` : ""} onClick={() => setStatusFilter(item.value)}>{item.label}</button>)}
-            </div>
-          )}
-          <span className="week-load">{displayedLessons.length} {eventWord(displayedLessons.length)} · {formatHours(displayedLessons.reduce((sum, lesson) => sum + lesson.duration / 60, 0))}</span>
-        </div>
-
         <div className="calendar-color-legend" aria-label="Цветовые обозначения календаря">
           <span><i className="calendar-color-scheduled" />Запланировано</span>
           <span><i className="calendar-color-completed" />Проведено</span>
@@ -503,16 +480,17 @@ export default function CalendarPage() {
           <span><i className="calendar-color-rescheduled" />Перенесено</span>
           <span><i className="calendar-color-no-show" />Не пришёл</span>
           <span><i className="calendar-color-other" />Другое событие</span>
+          <span className="week-load">{visibleLessons.length} {eventWord(visibleLessons.length)} · {formatHours(visibleLessons.reduce((sum, lesson) => sum + lesson.duration / 60, 0))}</span>
         </div>
 
         {isLoading && <div className="calendar-data-state" aria-live="polite"><LoaderCircle size={18} /><span>Загружаем события из Supabase…</span></div>}
         {loadError && <div className="calendar-data-state calendar-data-error" role="alert"><CircleAlert size={18} /><span>{loadError}</span><button type="button" onClick={() => void loadCalendar()}>Повторить</button></div>}
-        {!isLoading && !loadError && displayedLessons.length === 0 && <div className="calendar-data-state calendar-data-empty"><CalendarPlus size={18} /><span>В выбранном периоде событий пока нет. Нажмите «Добавить урок» или выберите свободное время.</span></div>}
+        {!isLoading && !loadError && visibleLessons.length === 0 && <div className="calendar-data-state calendar-data-empty"><CalendarPlus size={18} /><span>В выбранном периоде событий пока нет. Нажмите «Добавить урок» или выберите свободное время.</span></div>}
 
         {view === "month" ? (
           <MonthCalendar anchorDate={anchorDate} lessons={filteredCalendarItems} onEmptyDateClick={(date) => openCreate(date)} onLessonClick={openLessonDetails} onOtherEventClick={openOtherEventDetails} />
         ) : (
-          <WeekCalendar dates={visibleDates} lessons={view === "week" ? displayedLessons : visibleLessons} onEmptySlotClick={openCreate} onLessonClick={openLessonDetails} onOtherEventClick={openOtherEventDetails} />
+          <WeekCalendar dates={visibleDates} lessons={visibleLessons} onEmptySlotClick={openCreate} onLessonClick={openLessonDetails} onOtherEventClick={openOtherEventDetails} />
         )}
       </section>
 
