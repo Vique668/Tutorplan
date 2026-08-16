@@ -162,20 +162,20 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
               <label className="lesson-form-full"><span>Группа</span><select value={draft.groupId ?? ""} onChange={(event) => selectGroup(event.target.value)} required disabled={isMutating}>{groups.map((group) => <option value={group.id} key={group.id}>{group.name}</option>)}</select></label>
             )}
             <label><span>Дата</span><input type="date" value={draft.date} onChange={(event) => update("date", event.target.value)} required disabled={isMutating} /></label>
-            <label><span>Время начала</span><input type="time" min="08:00" max="21:30" step="300" value={draft.startTime} onChange={(event) => updateStartTime(event.target.value)} required disabled={isMutating} /></label>
-            <label><span>Время окончания</span><input type="time" min="08:05" max="22:00" step="300" value={draft.endTime} onChange={(event) => update("endTime", event.target.value)} required disabled={isMutating} /></label>
+            <label><span>Время начала</span><input type="time" min="08:00" max="21:30" step="60" value={draft.startTime} onChange={(event) => updateStartTime(event.target.value)} required disabled={isMutating} /></label>
+            <label><span>Время окончания</span><input type="time" min="08:01" max="22:00" step="60" value={draft.endTime} onChange={(event) => update("endTime", event.target.value)} required disabled={isMutating} /></label>
             <label><span>Стоимость</span><div className="price-input-wrap"><input type="number" min="0" step="1" value={draft.price} onChange={(event) => update("price", Number(event.target.value))} required disabled={isMutating} /><i>₽</i></div></label>
             <label className="lesson-form-full"><span>Статус</span><select value={draft.status} onChange={(event) => update("status", event.target.value as LessonStatus)} disabled={isMutating}>{primaryLessonStatuses.map((value) => <option value={value} key={value}>{lessonStatusLabels[value]}</option>)}</select></label>
             <label className="lesson-form-full"><span>Заметки</span><textarea rows={3} value={draft.notes} onChange={(event) => update("notes", event.target.value)} disabled={isMutating} /></label>
           </div>
           <div className="lesson-form-summary"><span>{draft.startTime}–{draft.endTime}</span><strong>{draft.price.toLocaleString("ru-RU")} ₽</strong></div>
-          {lesson.status === "cancelled" && <div className="lesson-cancellation-summary"><span>Причина: <strong>{cancellationReasonLabel(lesson.cancellationReason)}</strong></span><span>Штраф: <strong>{(lesson.cancellationFee ?? 0).toLocaleString("ru-RU")} ₽</strong></span></div>}
+          {normalizeStatus(lesson.status) === "cancelled" && <div className="lesson-cancellation-summary"><span>Причина: <strong>{cancellationReasonLabel(lesson.cancellationReason)}</strong></span><span>Штраф: <strong>{(lesson.cancellationFee ?? 0).toLocaleString("ru-RU")} ₽</strong></span></div>}
           {(validationError || error) && <p className="lesson-form-error" role="alert">{validationError || error}</p>}
           <div className="lesson-modal-footer lesson-editor-actions">
-            <Button type="button" variant="ghost" className="delete-lesson-button" icon={<Trash2 size={16} />} onClick={() => { if (window.confirm("Удалить этот урок без возможности восстановления?")) void onDelete(); }} disabled={isMutating}>Удалить урок</Button>
+            <Button type="button" variant="ghost" className="delete-lesson-button" icon={<Trash2 size={16} />} onClick={() => { if (window.confirm("Удалить этот урок без возможности восстановления? Связанное начисление также будет удалено.")) void onDelete(); }} disabled={isMutating}>Удалить урок</Button>
             <div>
               <Button type="button" variant="secondary" icon={<CheckCircle2 size={16} />} onClick={() => void onStatusChange("completed")} disabled={isMutating || lesson.status === "completed"}>Провести урок</Button>
-              {lesson.status === "cancelled" ? (
+              {normalizeStatus(lesson.status) === "cancelled" ? (
                 <Button
                   type="button"
                   variant="secondary"
