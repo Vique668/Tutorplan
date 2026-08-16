@@ -6,7 +6,7 @@ import { Ban, CheckCircle2, RotateCcw, Trash2, X } from "lucide-react";
 import type { Student } from "@/components/students/student-types";
 import type { StudentGroup } from "@/components/groups/group-types";
 import { Button } from "@/components/ui/button";
-import type { CalendarLesson, LessonStatus } from "./calendar-types";
+import type { CalendarLesson, LessonCancellationReason, LessonStatus } from "./calendar-types";
 import { lessonStatusLabels, primaryLessonStatuses } from "./calendar-types";
 import { formatLessonEnd, timeToMinutes } from "./date-utils";
 
@@ -22,6 +22,19 @@ export type CalendarLessonEditDraft = {
   notes: string;
 };
 
+export type CalendarLessonCancelDraft = {
+  reason: LessonCancellationReason | null;
+  fee: number;
+};
+
+const cancellationReasonOptions: { value: LessonCancellationReason | ""; label: string }[] = [
+  { value: "", label: "Не указывать" },
+  { value: "tutor_cancelled", label: "Моя отмена" },
+  { value: "illness", label: "Болел" },
+  { value: "absence", label: "Пропуск" },
+  { value: "holiday", label: "Праздник" },
+];
+
 type CalendarLessonDetailsModalProps = {
   lesson: CalendarLesson;
   students: Student[];
@@ -30,7 +43,7 @@ type CalendarLessonDetailsModalProps = {
   error: string | null;
   onClose: () => void;
   onUpdate: (draft: CalendarLessonEditDraft) => Promise<void>;
-  onCancelLesson: () => Promise<void>;
+  onCancelLesson: (draft: CalendarLessonCancelDraft) => Promise<void>;
   onStatusChange: (status: LessonStatus) => Promise<void>;
   onDelete: () => Promise<void>;
 };
@@ -38,24 +51,34 @@ type CalendarLessonDetailsModalProps = {
 export function CalendarLessonDetailsModal({ lesson, students, groups, isMutating, error, onClose, onUpdate, onCancelLesson, onStatusChange, onDelete }: CalendarLessonDetailsModalProps) {
   const [draft, setDraft] = useState<CalendarLessonEditDraft>(() => toEditDraft(lesson));
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState<LessonCancellationReason | "">(lesson.cancellationReason ?? "");
+  const [cancelFee, setCancelFee] = useState(lesson.cancellationFee ?? 0);
+  const [cancelValidationError, setCancelValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     setDraft(toEditDraft(lesson));
     setValidationError(null);
+    setCancelReason(lesson.cancellationReason ?? "");
+    setCancelFee(lesson.cancellationFee ?? 0);
+    if (lesson.status === "cancelled") setCancelDialogOpen(false);
   }, [lesson]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !isMutating) onClose();
+      if (event.key === "Escape" && !isMutating) {
+        if (cancelDialogOpen) setCancelDialogOpen(false);
+        else onClose();
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [isMutating, onClose]);
+  }, [cancelDialogOpen, isMutating, onClose]);
 
   function update<K extends keyof CalendarLessonEditDraft>(field: K, value: CalendarLessonEditDraft[K]) {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -110,6 +133,15 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
     await onUpdate(draft);
   }
 
+  async function submitCancellation() {
+    if (!Number.isInteger(cancelFee) || cancelFee < 0) {
+      setCancelValidationError("Штраф должен быть целым неотрицательным числом.");
+      return;
+    }
+    setCancelValidationError(null);
+    await onCancelLesson({ reason: cancelReason || null, fee: cancelFee });
+  }
+
   return createPortal(
     <div className="lesson-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !isMutating && onClose()}>
       <section className="lesson-modal" role="dialog" aria-modal="true" aria-labelledby="calendar-lesson-details-title">
@@ -137,6 +169,7 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
             <label className="lesson-form-full"><span>Заметки</span><textarea rows={3} value={draft.notes} onChange={(event) => update("notes", event.target.value)} disabled={isMutating} /></label>
           </div>
           <div className="lesson-form-summary"><span>{draft.startTime}–{draft.endTime}</span><strong>{draft.price.toLocaleString("ru-RU")} ₽</strong></div>
+          {lesson.status === "cancelled" && <div className="lesson-cancellation-summary"><span>Причина: <strong>{cancellationReasonLabel(lesson.cancellationReason)}</strong></span><span>Штраф: <strong>{(lesson.cancellationFee ?? 0).toLocaleString("ru-RU")} ₽</strong></span></div>}
           {(validationError || error) && <p className="lesson-form-error" role="alert">{validationError || error}</p>}
           <div className="lesson-modal-footer lesson-editor-actions">
             <Button type="button" variant="ghost" className="delete-lesson-button" icon={<Trash2 size={16} />} onClick={() => { if (window.confirm("Удалить этот урок без возможности восстановления?")) void onDelete(); }} disabled={isMutating}>Удалить урок</Button>
@@ -155,16 +188,45 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
                   Вернуть урок
                 </Button>
               ) : (
-                <Button type="button" variant="secondary" icon={<Ban size={16} />} onClick={() => void onCancelLesson()} disabled={isMutating}>Отменить урок</Button>
+                <Button type="button" variant="secondary" icon={<Ban size={16} />} onClick={() => { setCancelValidationError(null); setCancelDialogOpen(true); }} disabled={isMutating}>Отменить урок</Button>
               )}
               <Button type="submit" disabled={isMutating}>{isMutating ? "Сохранение…" : "Сохранить изменения"}</Button>
             </div>
           </div>
         </form>
       </section>
+      {cancelDialogOpen && (
+        <div className="lesson-cancel-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !isMutating && setCancelDialogOpen(false)}>
+          <section className="lesson-cancel-dialog" role="dialog" aria-modal="true" aria-labelledby="lesson-cancel-title">
+            <div className="lesson-cancel-header">
+              <div><span>ОТМЕНА УРОКА</span><h2 id="lesson-cancel-title">Отменить занятие?</h2></div>
+              <button type="button" className="icon-button" aria-label="Закрыть" onClick={() => setCancelDialogOpen(false)} disabled={isMutating}><X size={20} /></button>
+            </div>
+            <form onSubmit={(event) => { event.preventDefault(); void submitCancellation(); }}>
+              <p className="lesson-cancel-copy">Вы действительно хотите отменить урок с <strong>{lesson.participant}</strong> {formatCancellationDate(lesson.date)} в <strong>{lesson.startTime}</strong>?</p>
+              <div className="lesson-cancel-fields">
+                <label><span>Причина</span><select value={cancelReason} onChange={(event) => setCancelReason(event.target.value as LessonCancellationReason | "")} disabled={isMutating}>{cancellationReasonOptions.map((option) => <option value={option.value} key={option.value || "empty"}>{option.label}</option>)}</select></label>
+                <label><span>Штраф</span><div className="price-input-wrap"><input type="number" min="0" step="1" value={cancelFee} onChange={(event) => setCancelFee(Number(event.target.value))} disabled={isMutating} /><i>₽</i></div></label>
+              </div>
+              <div className="lesson-cancel-finance-note">{cancelFee > 0 ? `В баланс ученика будет начислено ${cancelFee.toLocaleString("ru-RU")} ₽.` : "Финансового начисления не будет."}</div>
+              {(cancelValidationError || error) && <p className="lesson-form-error" role="alert">{cancelValidationError || error}</p>}
+              <div className="lesson-cancel-actions"><Button type="button" variant="secondary" onClick={() => setCancelDialogOpen(false)} disabled={isMutating}>Не отменять</Button><Button type="submit" className="confirm-cancel-button" disabled={isMutating}>{isMutating ? "Отмена…" : "Отменить урок"}</Button></div>
+            </form>
+          </section>
+        </div>
+      )}
     </div>,
     document.body,
   );
+}
+
+function formatCancellationDate(value: string): string {
+  return new Intl.DateTimeFormat("ru-RU", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    .format(new Date(`${value}T12:00:00`));
+}
+
+function cancellationReasonLabel(reason?: LessonCancellationReason | null): string {
+  return cancellationReasonOptions.find((option) => option.value === (reason ?? ""))?.label ?? "Не указывать";
 }
 
 function toEditDraft(lesson: CalendarLesson): CalendarLessonEditDraft {

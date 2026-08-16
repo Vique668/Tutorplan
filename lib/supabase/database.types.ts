@@ -314,9 +314,12 @@ export type Database = {
           },
         ];
       };
-      lessons: {
-        Row: {
-          created_at: string;
+        lessons: {
+          Row: {
+            cancellation_fee: number;
+            cancellation_reason: string | null;
+            cancelled_at: string | null;
+            created_at: string;
           end_at: string;
           group_id: string | null;
           id: string;
@@ -330,8 +333,11 @@ export type Database = {
           tutor_id: string;
           updated_at: string;
         };
-        Insert: {
-          created_at?: string;
+          Insert: {
+            cancellation_fee?: number;
+            cancellation_reason?: string | null;
+            cancelled_at?: string | null;
+            created_at?: string;
           end_at: string;
           group_id?: string | null;
           id?: string;
@@ -345,8 +351,11 @@ export type Database = {
           tutor_id?: string;
           updated_at?: string;
         };
-        Update: {
-          created_at?: string;
+          Update: {
+            cancellation_fee?: number;
+            cancellation_reason?: string | null;
+            cancelled_at?: string | null;
+            created_at?: string;
           end_at?: string;
           group_id?: string | null;
           id?: string;

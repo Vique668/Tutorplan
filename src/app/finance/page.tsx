@@ -58,12 +58,14 @@ export default function FinancePage() {
   const range = useMemo(() => monthRange(period), [period]);
   const monthTransactions = transactions.filter((item) => item.transactionDate >= range.from && item.transactionDate < range.to && item.status === "posted");
   const monthCompletedLessons = completedLessons.filter((lesson) => toMonthKey(new Date(lesson.startAt)) === period);
-  const income = monthCompletedLessons.reduce((total, lesson) => total + lesson.price, 0);
+  const monthLessonCharges = monthTransactions.filter((item) => item.type === "lesson_charge");
+  const cancellationCharges = monthLessonCharges.filter((item) => item.category === "Отмена урока");
+  const income = sum(monthLessonCharges, "amount");
   const expenses = sum(monthTransactions.filter((item) => item.type === "expense"), "amount");
   const debtByStudent = new Map<string, number>();
   transactions.filter((item) => item.studentId && item.status === "posted").forEach((item) => debtByStudent.set(item.studentId!, (debtByStudent.get(item.studentId!) ?? 0) + signedStudentAmount(item)));
   const expected = [...debtByStudent.values()].reduce((total, balance) => total + Math.max(0, -balance), 0);
-  const chart = getMonthlyLessonChart(completedLessons, period);
+  const chart = getMonthlyLessonChargeChart(transactions, period);
   const chartMax = Math.max(...chart.map((item) => item.value), 1);
   const filtered = monthTransactions.filter((item) => filter === "all" || (filter === "income" && item.type === "payment") || (filter === "expense" && item.type === "expense") || (filter === "charge" && item.type === "lesson_charge"));
 
@@ -137,13 +139,13 @@ export default function FinancePage() {
       {error && <Card><div className="students-empty-state" role="alert"><CircleAlert size={28} /><h2>Не удалось загрузить данные</h2><p>{error}</p><Button variant="secondary" onClick={() => void loadFinance()}>Повторить</Button></div></Card>}
       {!isLoading && !error && <>
         <div className="stats-grid stats-grid-three">
-          <StatCard label={`Доход · ${formatMonth(period)}`} value={formatMoney(income)} note={`${monthCompletedLessons.length} проведённых уроков`} icon={<ArrowDownLeft size={21} />} tone="green" />
+          <StatCard label={`Доход · ${formatMonth(period)}`} value={formatMoney(income)} note={`${monthCompletedLessons.length} проведённых · ${cancellationCharges.length} штрафов`} icon={<ArrowDownLeft size={21} />} tone="green" />
           <StatCard label="Расходы" value={formatMoney(expenses)} note="Фактические операции" icon={<ArrowUpRight size={21} />} tone="orange" />
           <StatCard label="Ожидается / долг" value={formatMoney(expected)} note={`${[...debtByStudent.values()].filter((balance) => balance < 0).length} учеников с задолженностью`} icon={<WalletCards size={21} />} tone="purple" />
         </div>
         <div className="finance-grid">
           <Card className="chart-card">
-            <div className="card-toolbar"><div><h2>Доход по проведённым урокам</h2><p>За последние 8 месяцев</p></div></div>
+            <div className="card-toolbar"><div><h2>Начисления за занятия</h2><p>Проведённые уроки и штрафы за последние 8 месяцев</p></div></div>
             <div className="income-summary"><strong>{formatMoney(chart.reduce((sumValue, item) => sumValue + item.value, 0))}</strong></div>
             <div className="bar-chart" aria-label="График полученных оплат">{chart.map((item) => <div className="bar-item" key={item.key}><div><span style={{ height: `${Math.max(3, item.value / chartMax * 100)}%` }} className={item.key === period ? "bar-current" : ""} /></div><small>{item.label}</small></div>)}</div>
           </Card>
@@ -221,7 +223,7 @@ function FinanceOperationModal({ transaction, students, isSubmitting, error, onC
 }
 
 function monthRange(value: string) { const [year, month] = value.split("-").map(Number); return { from: `${value}-01`, to: toDateKey(new Date(year, month, 1)) }; }
-function getMonthlyLessonChart(items: Lesson[], endMonth: string) { const [year, month] = endMonth.split("-").map(Number); return Array.from({ length: 8 }, (_, index) => { const date = new Date(year, month - 8 + index, 1); const key = toMonthKey(date); return { key, label: new Intl.DateTimeFormat("ru-RU", { month: "short" }).format(date).replace(".", ""), value: items.filter((item) => toMonthKey(new Date(item.startAt)) === key).reduce((sumValue, item) => sumValue + item.price, 0) }; }); }
+function getMonthlyLessonChargeChart(items: FinanceTransaction[], endMonth: string) { const [year, month] = endMonth.split("-").map(Number); return Array.from({ length: 8 }, (_, index) => { const date = new Date(year, month - 8 + index, 1); const key = toMonthKey(date); return { key, label: new Intl.DateTimeFormat("ru-RU", { month: "short" }).format(date).replace(".", ""), value: items.filter((item) => item.type === "lesson_charge" && item.status === "posted" && item.transactionDate.startsWith(key)).reduce((sumValue, item) => sumValue + item.amount, 0) }; }); }
 function entityName(item: FinanceTransaction, students: Student[]) { if (item.studentId) { const student = students.find((candidate) => candidate.id === item.studentId); return student ? `${student.firstName} ${student.lastName}` : "Ученик"; } return item.category || "Операция"; }
 function transactionLabel(type: FinanceTransaction["type"]) { return ({ payment: "Оплата", lesson_charge: "Начисление за урок", expense: "Расход", adjustment: "Корректировка", refund: "Возврат" })[type]; }
 function isManualTransaction(item: FinanceTransaction) { return item.lessonId === null && (item.type === "payment" || item.type === "expense"); }

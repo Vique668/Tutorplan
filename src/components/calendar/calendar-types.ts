@@ -1,5 +1,6 @@
 export type CalendarView = "day" | "week" | "month";
 export type LessonStatus = "scheduled" | "completed" | "cancelled" | "rescheduled" | "no_show";
+export type LessonCancellationReason = "tutor_cancelled" | "illness" | "absence" | "holiday";
 export type LessonStatusFilter = "all" | "scheduled" | "completed" | "cancelled";
 export type RecurrenceOption = "none" | "weekly";
 export type SeriesActionScope = "single" | "following";
@@ -27,6 +28,9 @@ export type CalendarLesson = {
   duration: number;
   price: number;
   status: LessonStatus;
+  cancellationReason?: LessonCancellationReason | null;
+  cancellationFee?: number;
+  cancelledAt?: string | null;
   notes?: string | null;
   startAt?: string;
   endAt?: string;

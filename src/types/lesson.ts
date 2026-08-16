@@ -5,6 +5,12 @@ export type LessonStatus =
   | "rescheduled"
   | "no_show";
 
+export type LessonCancellationReason =
+  | "tutor_cancelled"
+  | "illness"
+  | "absence"
+  | "holiday";
+
 export type Lesson = {
   id: string;
   tutorId: string;
@@ -16,6 +22,9 @@ export type Lesson = {
   endAt: string;
   price: number;
   status: LessonStatus;
+  cancellationReason: LessonCancellationReason | null;
+  cancellationFee: number;
+  cancelledAt: string | null;
   notes: string | null;
   createdAt: string;
 };
@@ -47,5 +56,12 @@ export type UpdateLessonInput = {
   endAt?: string;
   price?: number;
   status?: LessonStatus;
+  cancellationReason?: LessonCancellationReason | null;
+  cancellationFee?: number;
   notes?: string | null;
+};
+
+export type CancelLessonInput = {
+  reason: LessonCancellationReason | null;
+  fee: number;
 };

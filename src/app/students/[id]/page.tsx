@@ -353,11 +353,7 @@ export default function StudentDetailsPage() {
             text={lessons.length ? `Всего занятий: ${lessons.length}` : "Занятий пока нет."}
           />
           <UpcomingLessons lessons={upcomingLessons} timezone={timezone} />
-          <StudentPlaceholder
-            icon={<History size={20} />}
-            title="История занятий"
-            text={lessonHistory.length ? `Завершённых и прошедших занятий: ${lessonHistory.length}` : "История появится после проведённых уроков."}
-          />
+          <LessonHistory lessons={lessonHistory} timezone={timezone} />
           <StudentFinance finance={finance} />
         </div>
       </div>
@@ -420,6 +416,31 @@ function UpcomingLessons({ lessons, timezone }: { lessons: Lesson[]; timezone: s
           </div>
         ) : (
           <p>Запланированных занятий пока нет.</p>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function LessonHistory({ lessons, timezone }: { lessons: Lesson[]; timezone: string }) {
+  return (
+    <Card className="student-details-placeholder student-upcoming-lessons-card">
+      <span><History size={20} /></span>
+      <div className="student-upcoming-lessons-content">
+        <h2>История посещений</h2>
+        {lessons.length ? (
+          <div className="student-upcoming-lessons-list">
+            {lessons.map((lesson) => (
+              <div className={`student-upcoming-lesson lesson-status-${lesson.status}`} key={lesson.id}>
+                <strong>{formatLessonDate(lesson.startAt, timezone)}</strong>
+                <span>{formatLessonTime(lesson.startAt, timezone)}–{formatLessonTime(lesson.endAt, timezone)}</span>
+                <small>{lessonStatusLabel(lesson.status)} · {lesson.price.toLocaleString("ru-RU")} ₽</small>
+                {lesson.status === "cancelled" && <em>Причина: {cancellationReasonLabel(lesson.cancellationReason)} · Штраф: {lesson.cancellationFee.toLocaleString("ru-RU")} ₽</em>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>История появится после проведённых или отменённых уроков.</p>
         )}
       </div>
     </Card>
@@ -505,6 +526,14 @@ function lessonStatusLabel(status: Lesson["status"]): string {
     no_show: "Ученик не пришёл",
   };
   return labels[status];
+}
+
+function cancellationReasonLabel(reason: Lesson["cancellationReason"]): string {
+  if (reason === "tutor_cancelled") return "Моя отмена";
+  if (reason === "illness") return "Болел";
+  if (reason === "absence") return "Пропуск";
+  if (reason === "holiday") return "Праздник";
+  return "Не указана";
 }
 
 function getErrorMessage(error: unknown): string {

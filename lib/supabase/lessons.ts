@@ -1,4 +1,5 @@
 import type {
+  CancelLessonInput,
   CreateLessonInput,
   Lesson,
   LessonStatus,
@@ -6,7 +7,7 @@ import type {
 } from "../../src/types/lesson";
 import { createClient } from "./client";
 
-const lessonColumns = "id,tutor_id,student_id,group_id,lesson_series_id,series_occurrence_date,start_at,end_at,price,status,notes,created_at" as const;
+const lessonColumns = "id,tutor_id,student_id,group_id,lesson_series_id,series_occurrence_date,start_at,end_at,price,status,cancellation_reason,cancellation_fee,cancelled_at,notes,created_at" as const;
 
 type LessonRow = {
   id: string;
@@ -19,6 +20,9 @@ type LessonRow = {
   end_at: string;
   price: number | string;
   status: LessonStatus;
+  cancellation_reason: Lesson["cancellationReason"];
+  cancellation_fee: number | string;
+  cancelled_at: string | null;
   notes: string | null;
   created_at: string;
 };
@@ -31,6 +35,8 @@ type LessonUpdatePayload = {
   end_at?: string;
   price?: number;
   status?: LessonStatus;
+  cancellation_reason?: Lesson["cancellationReason"];
+  cancellation_fee?: number;
   notes?: string | null;
 };
 
@@ -112,8 +118,12 @@ export async function updateLesson(
   return toLesson(data as LessonRow);
 }
 
-export async function cancelLesson(lessonId: string): Promise<Lesson> {
-  return updateLesson(lessonId, { status: "cancelled" });
+export async function cancelLesson(lessonId: string, input: CancelLessonInput): Promise<Lesson> {
+  return updateLesson(lessonId, {
+    status: "cancelled",
+    cancellationReason: input.reason,
+    cancellationFee: input.fee,
+  });
 }
 
 export async function restoreLesson(lessonId: string): Promise<Lesson> {
@@ -150,6 +160,8 @@ function toUpdatePayload(input: UpdateLessonInput): LessonUpdatePayload {
   if (input.endAt !== undefined) payload.end_at = input.endAt;
   if (input.price !== undefined) payload.price = input.price;
   if (input.status !== undefined) payload.status = input.status;
+  if ("cancellationReason" in input) payload.cancellation_reason = input.cancellationReason ?? null;
+  if (input.cancellationFee !== undefined) payload.cancellation_fee = input.cancellationFee;
   if ("notes" in input) payload.notes = emptyToNull(input.notes);
 
   return payload;
@@ -167,6 +179,9 @@ function toLesson(row: LessonRow): Lesson {
     endAt: row.end_at,
     price: Number(row.price),
     status: row.status,
+    cancellationReason: row.cancellation_reason,
+    cancellationFee: Number(row.cancellation_fee),
+    cancelledAt: row.cancelled_at,
     notes: row.notes,
     createdAt: row.created_at,
   };

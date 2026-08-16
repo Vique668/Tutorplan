@@ -9,6 +9,7 @@ import {
 } from "@/components/calendar/calendar-lesson-create-modal";
 import {
   CalendarLessonDetailsModal,
+  type CalendarLessonCancelDraft,
   type CalendarLessonEditDraft,
 } from "@/components/calendar/calendar-lesson-details-modal";
 import { CalendarOtherEventDetailsModal } from "@/components/calendar/calendar-other-event-details-modal";
@@ -286,13 +287,13 @@ export default function CalendarPage() {
     }
   }
 
-  async function cancelSelectedLesson() {
+  async function cancelSelectedLesson(draft: CalendarLessonCancelDraft) {
     if (!selectedLesson) return;
 
     setIsLessonMutating(true);
     setLessonActionError(null);
     try {
-      const cancelledLesson = await cancelLesson(selectedLesson.id);
+      const cancelledLesson = await cancelLesson(selectedLesson.id, draft);
       const calendarLesson = toCalendarLesson(cancelledLesson, students, groups, timezone);
       setLessons((current) => current.map((lesson) => lesson.id === calendarLesson.id ? calendarLesson : lesson));
       setSelectedLesson(calendarLesson);
@@ -464,6 +465,9 @@ function toCalendarLesson(lesson: Lesson, students: Student[], groups: StudentGr
     duration,
     price: lesson.price,
     status: lesson.status,
+    cancellationReason: lesson.cancellationReason,
+    cancellationFee: lesson.cancellationFee,
+    cancelledAt: lesson.cancelledAt,
     notes: lesson.notes,
     startAt: lesson.startAt,
     endAt: lesson.endAt,
