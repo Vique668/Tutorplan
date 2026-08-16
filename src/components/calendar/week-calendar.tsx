@@ -72,6 +72,8 @@ export function WeekCalendar({ dates, lessons, onEmptySlotClick, onLessonClick, 
               const dateKey = toDateKey(date);
               const current = dateKey === toDateKey(today);
               const weekend = date.getDay() === 0 || date.getDay() === 6;
+              const dayLessons = lessons.filter((lesson) => lesson.date === dateKey);
+              const lessonBreaks = getLessonBreaks(dayLessons);
               return (
                 <div
                   className={`tutor-day-column ${current ? "is-current" : ""} ${weekend ? "is-weekend" : ""}`}
@@ -83,7 +85,20 @@ export function WeekCalendar({ dates, lessons, onEmptySlotClick, onLessonClick, 
                   {current && showCurrentTime && (
                     <div className="current-time-line" style={{ top: `${((nowMinutes / 60) - firstHour) * hourHeight}px` }}><span /></div>
                   )}
-                  {lessons.filter((lesson) => lesson.date === dateKey).map((lesson) => {
+                  {lessonBreaks.map((lessonBreak) => (
+                    <div
+                      className="calendar-lesson-break"
+                      key={`${lessonBreak.start}-${lessonBreak.end}`}
+                      style={{
+                        top: `${((lessonBreak.start / 60) - firstHour) * hourHeight}px`,
+                        height: `${((lessonBreak.end - lessonBreak.start) / 60) * hourHeight}px`,
+                      }}
+                      aria-label={`Перерыв ${formatBreakDuration(lessonBreak.end - lessonBreak.start)}`}
+                    >
+                      <span>Перерыв · {formatBreakDuration(lessonBreak.end - lessonBreak.start)}</span>
+                    </div>
+                  ))}
+                  {dayLessons.map((lesson) => {
                     const startMinutes = timeToMinutes(lesson.startTime);
                     const visibleStart = Math.max(startMinutes, firstHour * 60);
                     const visibleEnd = Math.min(startMinutes + lesson.duration, lastHour * 60);
@@ -135,4 +150,31 @@ export function WeekCalendar({ dates, lessons, onEmptySlotClick, onLessonClick, 
       </div>
     </div>
   );
+}
+
+function getLessonBreaks(items: CalendarLesson[]) {
+  const intervals = items
+    .filter((item) => item.kind === "lesson" && item.status !== "cancelled")
+    .map((item) => ({ start: timeToMinutes(item.startTime), end: timeToMinutes(item.startTime) + item.duration }))
+    .sort((first, second) => first.start - second.start);
+  if (intervals.length < 2) return [];
+
+  const breaks: { start: number; end: number }[] = [];
+  let occupiedUntil = intervals[0].end;
+  for (const interval of intervals.slice(1)) {
+    if (interval.start > occupiedUntil) {
+      const visibleStart = Math.max(occupiedUntil, firstHour * 60);
+      const visibleEnd = Math.min(interval.start, lastHour * 60);
+      if (visibleEnd > visibleStart) breaks.push({ start: visibleStart, end: visibleEnd });
+    }
+    occupiedUntil = Math.max(occupiedUntil, interval.end);
+  }
+  return breaks;
+}
+
+function formatBreakDuration(minutes: number) {
+  if (minutes < 60) return `${minutes} мин`;
+  const hoursValue = Math.floor(minutes / 60);
+  const minutesValue = minutes % 60;
+  return minutesValue ? `${hoursValue} ч ${minutesValue} мин` : `${hoursValue} ч`;
 }
