@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, CircleAlert, CircleDollarSign, Download, LoaderCircle, Pencil, Plus, ReceiptText, Trash2, WalletCards, X } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CircleAlert, CircleDollarSign, Download, LoaderCircle, Pencil, Plus, ReceiptText, Search, Trash2, WalletCards, X } from "lucide-react";
 import type { Student } from "@/components/students/student-types";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,6 +18,7 @@ import { getStudents } from "../../../lib/supabase/students";
 
 type OperationDraft = { kind: "payment" | "expense"; studentId: string; amount: number; date: string; paymentMethod: string; category: string; description: string };
 type Filter = "all" | "income" | "expense" | "charge";
+type BalanceFilter = "active" | "all" | "archived";
 const expenseCategories = ["Сервисы", "Материалы", "Реклама", "Аренда", "Налоги", "Другое"];
 
 export default function FinancePage() {
@@ -25,6 +28,8 @@ export default function FinancePage() {
   const [goal, setGoal] = useState<number | null>(null);
   const [period, setPeriod] = useState(() => toMonthKey(new Date()));
   const [filter, setFilter] = useState<Filter>("all");
+  const [balanceFilter, setBalanceFilter] = useState<BalanceFilter>("active");
+  const [balanceSearch, setBalanceSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -144,6 +149,7 @@ export default function FinancePage() {
           </Card>
           <Card className="goal-card"><div className="card-toolbar"><div><h2>Цель на месяц</h2><p>{formatMonth(period)}</p></div><span className="goal-icon"><CircleDollarSign size={21} /></span></div><div className="goal-ring" style={{ background: `conic-gradient(var(--orange) ${goalPercent}%, #f1eee9 0)` }}><div><strong>{goal ? `${goalPercent}%` : "—"}</strong><span>{goal ? "выполнено" : "не задана"}</span></div></div><div className="goal-values"><div><span>Получено</span><strong>{formatMoney(income)}</strong></div><div><span>Цель</span><strong>{goal === null ? "—" : formatMoney(goal)}</strong></div></div><Button variant="secondary" className="full-button" onClick={() => void changeGoal()}>Изменить цель</Button></Card>
         </div>
+        <StudentBalances students={students} balances={debtByStudent} filter={balanceFilter} search={balanceSearch} onFilterChange={setBalanceFilter} onSearchChange={setBalanceSearch} />
         <Card className="table-card">
           <div className="card-toolbar"><div><h2>Операции</h2><p>{formatMonth(period)}</p></div><select className="select-button" value={filter} onChange={(event) => setFilter(event.target.value as Filter)}><option value="all">Все</option><option value="income">Оплаты</option><option value="charge">Начисления</option><option value="expense">Расходы</option></select></div>
           {filtered.length ? <div className="data-table finance-table"><div className="data-row data-head"><span>Дата</span><span>Ученик / категория</span><span>Назначение</span><span>Статус</span><span>Сумма</span></div>{filtered.map((item) => <div className="data-row" key={item.id}><span>{formatDate(item.transactionDate)}</span><div className="transaction-name"><span className={`transaction-icon ${item.type === "expense" ? "expense" : ""}`}><ReceiptText size={16} /></span><strong>{entityName(item, students)}</strong></div><span>{item.description || transactionLabel(item.type)}</span><span><Badge tone={item.status === "posted" ? "green" : "gray"}>{item.status === "posted" ? "Проведено" : item.status === "pending" ? "Ожидает" : "Отменено"}</Badge></span><div className="finance-row-value"><strong className={signedOperationAmount(item) >= 0 ? "balance-positive" : "balance-negative"}>{formatSignedMoney(signedOperationAmount(item))}</strong>{isManualTransaction(item) && <span className="finance-row-actions"><button type="button" aria-label="Редактировать операцию" onClick={() => { setEditingTransaction(item); setSubmitError(null); setModalOpen(true); }}><Pencil size={15} /></button><button type="button" aria-label="Удалить операцию" onClick={() => void removeOperation(item)} disabled={isSubmitting}><Trash2 size={15} /></button></span>}</div></div>)}</div> : <div className="students-empty-state"><ReceiptText size={28} /><h2>Операций за период нет</h2><p>Добавьте оплату или расход.</p></div>}
@@ -151,6 +157,50 @@ export default function FinancePage() {
       </>}
       {modalOpen && <FinanceOperationModal transaction={editingTransaction} students={students.filter((student) => student.status === "active")} isSubmitting={isSubmitting} error={submitError} onClose={() => { if (!isSubmitting) { setModalOpen(false); setEditingTransaction(null); } }} onSave={saveOperation} />}
     </div>
+  );
+}
+
+function StudentBalances({ students, balances, filter, search, onFilterChange, onSearchChange }: { students: Student[]; balances: Map<string, number>; filter: BalanceFilter; search: string; onFilterChange: (value: BalanceFilter) => void; onSearchChange: (value: string) => void }) {
+  const normalizedSearch = search.trim().toLocaleLowerCase("ru-RU");
+  const visibleStudents = students
+    .filter((student) => filter === "all" || student.status === filter)
+    .filter((student) => !normalizedSearch || `${student.firstName} ${student.lastName}`.toLocaleLowerCase("ru-RU").includes(normalizedSearch))
+    .sort((first, second) => `${first.firstName} ${first.lastName}`.localeCompare(`${second.firstName} ${second.lastName}`, "ru-RU"));
+
+  return (
+    <Card className="student-balances-card">
+      <div className="balances-toolbar">
+        <div><h2>Список балансов</h2><p>{visibleStudents.length} {studentWord(visibleStudents.length)} в списке</p></div>
+        <div className="balance-filter-controls">
+          <select value={filter} onChange={(event) => onFilterChange(event.target.value as BalanceFilter)} aria-label="Фильтр учеников по статусу">
+            <option value="active">Только активные</option>
+            <option value="all">Все ученики</option>
+            <option value="archived">Только архивные</option>
+          </select>
+          <label className="balance-search-input">
+            <Search size={16} />
+            <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Начните вводить имя ученика" aria-label="Поиск ученика" />
+          </label>
+        </div>
+      </div>
+      {visibleStudents.length ? (
+        <div className="student-balances-grid">
+          {visibleStudents.map((student) => {
+            const balance = balances.get(student.id) ?? 0;
+            const tone = balance > 0 ? "positive" : balance < 0 ? "negative" : "zero";
+            return (
+              <Link className={`student-balance-card balance-${tone}`} href={`/students/${student.id}`} key={student.id}>
+                <Avatar initials={`${student.firstName[0] ?? ""}${student.lastName[0] ?? ""}`} color={tone === "negative" ? "pink" : tone === "positive" ? "green" : "peach"} />
+                <div className="student-balance-name"><strong>{student.firstName} {student.lastName}</strong><small>{student.status === "active" ? "Активный ученик" : "В архиве"}</small></div>
+                <div className="student-balance-value"><strong>{formatBalance(balance)}</strong><span>{balance > 0 ? "Аванс" : balance < 0 ? "К оплате" : "Баланс ровный"}</span></div>
+              </Link>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="balance-empty-state"><WalletCards size={24} /><strong>Ученики не найдены</strong><span>Измените фильтр или поисковый запрос.</span></div>
+      )}
+    </Card>
   );
 }
 
@@ -178,6 +228,8 @@ function isManualTransaction(item: FinanceTransaction) { return item.lessonId ==
 function signedOperationAmount(item: FinanceTransaction) { if (item.type === "payment" || item.type === "adjustment") return item.amount; return -item.amount; }
 function formatMoney(value: number) { return `${value.toLocaleString("ru-RU")} ₽`; }
 function formatSignedMoney(value: number) { return `${value >= 0 ? "+" : "−"}${Math.abs(value).toLocaleString("ru-RU")} ₽`; }
+function formatBalance(value: number) { return `${value < 0 ? "−" : ""}${Math.abs(value).toLocaleString("ru-RU")} ₽`; }
+function studentWord(value: number) { const lastTwo = value % 100; const last = value % 10; if (lastTwo >= 11 && lastTwo <= 14) return "учеников"; if (last === 1) return "ученик"; if (last >= 2 && last <= 4) return "ученика"; return "учеников"; }
 function formatDate(value: string) { return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(new Date(`${value}T00:00:00`)); }
 function formatMonth(value: string) { return new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(new Date(`${value}-01T00:00:00`)); }
 function toMonthKey(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`; }

@@ -800,6 +800,30 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
 .finance-row-actions button { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--border); border-radius: 9px; color: var(--muted); background: var(--surface); cursor: pointer; }
 .finance-row-actions button:hover { color: var(--text); border-color: var(--orange); }
 .finance-row-actions button:last-child:hover { color: #d85b5b; border-color: #efb0b0; }
+.student-balances-card { overflow: hidden; }
+.balances-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 17px 19px; border-bottom: 1px solid var(--line); }
+.balances-toolbar h2 { margin: 0; font-size: 14px; }
+.balances-toolbar p { margin: 4px 0 0; color: var(--muted); font-size: 8px; }
+.balance-filter-controls { display: flex; min-width: min(570px,65%); justify-content: flex-end; gap: 9px; }
+.balance-filter-controls select,.balance-search-input { height: 38px; border: 1px solid var(--line); border-radius: 11px; color: var(--text); background: #fffefd; }
+.balance-filter-controls select { min-width: 160px; padding: 0 32px 0 11px; font-size: 9px; cursor: pointer; }
+.balance-search-input { display: flex; min-width: 260px; flex: 1; align-items: center; gap: 8px; padding: 0 11px; color: var(--muted); }
+.balance-search-input:focus-within { border-color: color-mix(in srgb,var(--orange) 45%,var(--line)); box-shadow: 0 0 0 3px var(--accent-shadow); }
+.balance-search-input input { width: 100%; border: 0; outline: 0; color: var(--text); background: transparent; font-size: 9px; }
+.balance-search-input input::placeholder { color: #aaa19a; }
+.student-balances-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(235px,1fr)); gap: 10px; padding: 14px; background: linear-gradient(135deg,color-mix(in srgb,var(--accent-pale) 70%,white),color-mix(in srgb,var(--orange-soft) 28%,white)); }
+.student-balance-card { display: grid; min-height: 76px; grid-template-columns: 38px minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 12px; border: 1px solid rgba(222,215,207,.8); border-radius: 14px; color: inherit; background: rgba(255,255,255,.9); box-shadow: 0 3px 10px rgba(70,48,30,.035); text-decoration: none; transition: transform .15s ease,border-color .15s ease,box-shadow .15s ease; }
+.student-balance-card:hover { border-color: color-mix(in srgb,var(--orange) 28%,var(--line)); box-shadow: 0 7px 18px rgba(70,48,30,.08); transform: translateY(-1px); }
+.student-balance-name,.student-balance-value { display: flex; min-width: 0; flex-direction: column; }
+.student-balance-name strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.student-balance-name small,.student-balance-value span { margin-top: 3px; color: var(--muted); font-size: 7px; }
+.student-balance-value { align-items: flex-end; text-align: right; }
+.student-balance-value strong { font-size: 13px; white-space: nowrap; }
+.balance-positive .student-balance-value strong { color: #2b8b58; }
+.balance-negative .student-balance-value strong { color: #c4535c; }
+.balance-zero .student-balance-value strong { color: #b27b1c; }
+.balance-empty-state { display: flex; min-height: 130px; align-items: center; justify-content: center; flex-direction: column; gap: 5px; color: var(--muted); background: var(--accent-pale); text-align: center; }
+.balance-empty-state strong { color: var(--text); font-size: 11px; }.balance-empty-state span { font-size: 8px; }
 
 /* Statistics */
 .statistics-grid { display: grid; grid-template-columns: minmax(0,1.8fr) minmax(260px,.8fr); gap: 16px; }
@@ -940,6 +964,10 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
   .student-list-card { position: relative; }
   .student-open-icon { display: none; }
   .finance-table .data-row { min-width: 760px; }
+  .balances-toolbar { align-items: stretch; flex-direction: column; }
+  .balance-filter-controls { width: 100%; min-width: 0; flex-direction: column; }
+  .balance-filter-controls select,.balance-search-input { width: 100%; min-width: 0; }
+  .student-balances-grid { grid-template-columns: 1fr; padding: 10px; }
   .tip-banner { align-items: flex-start; flex-wrap: wrap; }.tip-banner > div { min-width: 210px; }.tip-banner .button { width: 100%; }
   .achievement-card { align-items: flex-start; flex-wrap: wrap; }.achievement-card > div { min-width: 200px; }.achievement-card .button { width: 100%; }
   .settings-layout { grid-template-columns: 1fr; }
