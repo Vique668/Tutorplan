@@ -90,7 +90,7 @@ export function StudentLessonModal({
           <div className="student-form-grid">
             <label className="student-form-full"><span>Ученик</span><input value={`${student.firstName} ${student.lastName}`} disabled /></label>
             <label><span>Дата</span><input type="date" value={draft.date} onChange={(event) => update("date", event.target.value)} required disabled={isSubmitting} /></label>
-            <label><span>Время начала</span><input type="time" value={draft.startTime} onChange={(event) => update("startTime", event.target.value)} required disabled={isSubmitting} /></label>
+            <label><span>Время начала</span><input type="time" step="300" value={draft.startTime} onChange={(event) => update("startTime", event.target.value)} required disabled={isSubmitting} /></label>
             <label><span>Продолжительность</span><select value={draft.duration} onChange={(event) => update("duration", Number(event.target.value))} required disabled={isSubmitting}><option value={30}>30 минут</option><option value={45}>45 минут</option><option value={60}>1 час</option><option value={90}>1 час 30 минут</option><option value={120}>2 часа</option></select></label>
             <label><span>Стоимость</span><div className="price-input-wrap"><input type="number" min="0" value={draft.price} onChange={(event) => update("price", Number(event.target.value))} required disabled={isSubmitting} /><i>₽</i></div></label>
             <label className="student-form-full"><span>Статус</span><select value={draft.status} onChange={(event) => update("status", event.target.value as LessonStatus)} disabled={isSubmitting}>{lessonStatuses.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>

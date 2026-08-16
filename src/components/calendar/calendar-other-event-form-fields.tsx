@@ -19,8 +19,8 @@ export function CalendarOtherEventFormFields({ draft, disabled, onChange }: Cale
     <div className="lesson-form-grid">
       <label className="lesson-form-full"><span>Название события</span><input type="text" value={draft.title} onChange={(event) => onChange("title", event.target.value)} placeholder="Например, личная встреча" required autoFocus disabled={disabled} /></label>
       <label className="lesson-form-full"><span>Дата</span><input type="date" value={draft.date} onChange={(event) => onChange("date", event.target.value)} required disabled={disabled} /></label>
-      <label><span>Время начала</span><input type="time" value={draft.startTime} onChange={(event) => onChange("startTime", event.target.value)} required disabled={disabled} /></label>
-      <label><span>Время окончания</span><input type="time" value={draft.endTime} onChange={(event) => onChange("endTime", event.target.value)} required disabled={disabled} /></label>
+      <label><span>Время начала</span><input type="time" step="300" value={draft.startTime} onChange={(event) => onChange("startTime", event.target.value)} required disabled={disabled} /></label>
+      <label><span>Время окончания</span><input type="time" step="300" value={draft.endTime} onChange={(event) => onChange("endTime", event.target.value)} required disabled={disabled} /></label>
       <label className="lesson-form-full"><span>Заметки</span><textarea rows={4} value={draft.notes} onChange={(event) => onChange("notes", event.target.value)} placeholder="Необязательно" disabled={disabled} /></label>
     </div>
   );
