@@ -324,11 +324,14 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
 .calendar-filter-actions .button { width: 100%; }
 .tutor-week-scroll { overflow: auto; }
 .tutor-week-calendar { min-width: 1040px; }
-.tutor-week-header { display: grid; grid-template-columns: 70px repeat(var(--day-count,7),minmax(130px,1fr)); height: 76px; border-bottom: 1px solid var(--line); background: #fffefd; }
+.tutor-week-header { display: grid; grid-template-columns: 70px repeat(var(--day-count,7),minmax(130px,1fr)); height: 86px; border-bottom: 1px solid var(--line); background: #fffefd; }
 .timezone-label { display: flex; align-items: flex-end; justify-content: center; padding-bottom: 11px; color: #b1aaa4; font-size: 8px; }
-.tutor-day-heading { display: grid; grid-template-columns: auto auto; align-content: center; justify-content: center; column-gap: 8px; border-left: 1px solid #eeeae6; text-align: center; }
+.tutor-day-heading { display: grid; grid-template-columns: auto auto minmax(0,auto); align-content: center; justify-content: center; column-gap: 6px; border-left: 1px solid #eeeae6; text-align: center; }
 .tutor-day-heading span { align-self: center; color: #9d948e; font-size: 8px; font-weight: 800; letter-spacing: .08em; }
 .tutor-day-heading strong { display: grid; width: 31px; height: 31px; place-items: center; border-radius: 10px; font-size: 13px; }
+.tutor-day-metrics { display: flex; min-width: 0; align-self: center; align-items: flex-start; flex-direction: column; gap: 2px; text-align: left; }
+.tutor-day-metrics b { color: #4f82c8; font-size: 7px; font-style: normal; font-weight: 800; white-space: nowrap; }
+.tutor-day-metrics em { color: #847a73; font-size: 6px; font-style: normal; font-weight: 650; white-space: nowrap; }
 .tutor-day-heading small { grid-column: 1/-1; margin-top: 1px; color: #aaa19b; font-size: 8px; }
 .tutor-day-heading.is-current strong { color: white; background: linear-gradient(135deg,color-mix(in srgb,var(--orange) 76%,white),var(--orange)); box-shadow: 0 4px 12px var(--accent-shadow); }
 .tutor-day-heading.is-current span { color: var(--orange-dark); }

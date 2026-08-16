@@ -49,12 +49,20 @@ export function WeekCalendar({ dates, lessons, onEmptySlotClick, onLessonClick, 
           <div className="timezone-label">GMT+3</div>
           {dates.map((date) => {
             const names = dayNames[date.getDay()];
+            const dateKey = toDateKey(date);
             const current = toDateKey(date) === toDateKey(today);
             const weekend = date.getDay() === 0 || date.getDay() === 6;
+            const dayLessonItems = lessons.filter((lesson) => (
+              lesson.date === dateKey
+              && lesson.kind !== "other"
+              && lesson.status !== "cancelled"
+            ));
+            const occupiedMinutes = dayLessonItems.reduce((total, lesson) => total + lesson.duration, 0);
             return (
-              <div className={`tutor-day-heading ${current ? "is-current" : ""} ${weekend ? "is-weekend" : ""}`} key={toDateKey(date)}>
+              <div className={`tutor-day-heading ${current ? "is-current" : ""} ${weekend ? "is-weekend" : ""}`} key={dateKey}>
                 <span>{names.short}</span>
                 <strong>{date.getDate()}</strong>
+                <div className="tutor-day-metrics"><b>Уроков: {dayLessonItems.length}</b><em>Занятость {formatOccupiedTime(occupiedMinutes)}</em></div>
                 <small>{names.full}</small>
               </div>
             );
@@ -173,6 +181,12 @@ function getLessonBreaks(items: CalendarLesson[]) {
     occupiedUntil = Math.max(occupiedUntil, interval.end);
   }
   return breaks;
+}
+
+function formatOccupiedTime(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours} ч ${minutes} мин`;
 }
 
 function formatBreakDuration(minutes: number) {
