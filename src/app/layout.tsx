@@ -6,7 +6,11 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 export const metadata: Metadata = {
   title: "TutorPlan — кабинет репетитора",
   description: "Календарь, ученики и финансы репетитора в одном месте",
-  icons: { icon: "/brand/favicon.png" },
+  icons: {
+    icon: [{ url: "/brand/favicon-large.svg", type: "image/svg+xml", sizes: "any" }],
+    shortcut: "/brand/favicon-large.svg",
+    apple: "/brand/logo-symbol.png",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
