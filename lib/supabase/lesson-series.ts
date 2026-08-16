@@ -112,17 +112,9 @@ export async function ensureLessonSeriesRange(fromDate: string, toDate: string):
 }
 
 export async function deleteLessonSeries(seriesId: string): Promise<void> {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from("lesson_series")
-    .update({ is_active: false, deleted_at: new Date().toISOString() })
-    .eq("id", seriesId)
-    .is("deleted_at", null)
-    .select("id")
-    .single();
-
+  const { data, error } = await createClient().rpc("delete_lesson_series", { p_series_id: seriesId });
   if (error) throw error;
-  if (data.id !== seriesId) throw new Error("Supabase did not delete the schedule template");
+  if (typeof data !== "number") throw new Error("Supabase did not delete the schedule template");
 }
 
 function toLessonSeries(row: LessonSeriesRow): LessonSeries {

@@ -152,7 +152,7 @@ export function ScheduleFormModal({
             </div>
 
             {error && <p className="lesson-form-error" role="alert">{error}</p>}
-            {confirmingDelete && <div className="lesson-delete-confirmation"><strong>Удалить это правило расписания?</strong><div><Button type="button" variant="secondary" onClick={() => setConfirmingDelete(false)} disabled={isSubmitting}>Не удалять</Button><Button type="button" className="confirm-delete-button" onClick={() => void onDelete?.()} disabled={isSubmitting}>{isSubmitting ? "Удаление…" : "Удалить"}</Button></div></div>}
+            {confirmingDelete && <div className="lesson-delete-confirmation"><strong>Удалить это правило и все его будущие уроки? История занятий сохранится.</strong><div><Button type="button" variant="secondary" onClick={() => setConfirmingDelete(false)} disabled={isSubmitting}>Не удалять</Button><Button type="button" className="confirm-delete-button" onClick={() => void onDelete?.()} disabled={isSubmitting}>{isSubmitting ? "Удаление…" : "Удалить"}</Button></div></div>}
 
             {!confirmingDelete && <div className="lesson-details-actions">
               <Button type="button" variant="ghost" className="delete-lesson-button" icon={<Trash2 size={16} />} onClick={() => setConfirmingDelete(true)} disabled={isSubmitting}>Удалить</Button>

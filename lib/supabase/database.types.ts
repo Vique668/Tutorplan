@@ -780,6 +780,10 @@ export type Database = {
         Args: { p_student_id: string };
         Returns: string;
       };
+      delete_lesson_series: {
+        Args: { p_series_id: string };
+        Returns: number;
+      };
       generate_active_lesson_series_range: {
         Args: { p_from_date: string; p_to_date: string };
         Returns: undefined;
