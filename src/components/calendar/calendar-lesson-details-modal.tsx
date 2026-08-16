@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Ban, CheckCircle2, Trash2, X } from "lucide-react";
+import { Ban, CheckCircle2, RotateCcw, Trash2, X } from "lucide-react";
 import type { Student } from "@/components/students/student-types";
 import type { StudentGroup } from "@/components/groups/group-types";
 import { Button } from "@/components/ui/button";
@@ -142,7 +142,21 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
             <Button type="button" variant="ghost" className="delete-lesson-button" icon={<Trash2 size={16} />} onClick={() => { if (window.confirm("Удалить этот урок без возможности восстановления?")) void onDelete(); }} disabled={isMutating}>Удалить урок</Button>
             <div>
               <Button type="button" variant="secondary" icon={<CheckCircle2 size={16} />} onClick={() => void onStatusChange("completed")} disabled={isMutating || lesson.status === "completed"}>Провести урок</Button>
-              <Button type="button" variant="secondary" icon={<Ban size={16} />} onClick={() => void onCancelLesson()} disabled={isMutating || lesson.status === "cancelled"}>Отменить урок</Button>
+              {lesson.status === "cancelled" ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  icon={<RotateCcw size={16} />}
+                  onClick={() => {
+                    if (window.confirm("Вернуть это занятие в расписание?")) void onStatusChange("scheduled");
+                  }}
+                  disabled={isMutating}
+                >
+                  Вернуть урок
+                </Button>
+              ) : (
+                <Button type="button" variant="secondary" icon={<Ban size={16} />} onClick={() => void onCancelLesson()} disabled={isMutating}>Отменить урок</Button>
+              )}
               <Button type="submit" disabled={isMutating}>{isMutating ? "Сохранение…" : "Сохранить изменения"}</Button>
             </div>
           </div>
