@@ -87,7 +87,7 @@ export function WeekCalendar({ dates, lessons, onEmptySlotClick, onLessonClick, 
                   )}
                   {lessonBreaks.map((lessonBreak) => (
                     <div
-                      className="calendar-lesson-break"
+                      className={`calendar-lesson-break ${lessonBreak.start === lessonBreak.end ? "is-zero" : ""}`}
                       key={`${lessonBreak.start}-${lessonBreak.end}`}
                       style={{
                         top: `${((lessonBreak.start / 60) - firstHour) * hourHeight}px`,
@@ -162,10 +162,13 @@ function getLessonBreaks(items: CalendarLesson[]) {
   const breaks: { start: number; end: number }[] = [];
   let occupiedUntil = intervals[0].end;
   for (const interval of intervals.slice(1)) {
-    if (interval.start > occupiedUntil) {
+    if (interval.start >= occupiedUntil) {
       const visibleStart = Math.max(occupiedUntil, firstHour * 60);
       const visibleEnd = Math.min(interval.start, lastHour * 60);
-      if (visibleEnd > visibleStart) breaks.push({ start: visibleStart, end: visibleEnd });
+      const isVisibleZeroBreak = interval.start === occupiedUntil
+        && occupiedUntil >= firstHour * 60
+        && occupiedUntil <= lastHour * 60;
+      if (visibleEnd > visibleStart || isVisibleZeroBreak) breaks.push({ start: visibleStart, end: visibleEnd });
     }
     occupiedUntil = Math.max(occupiedUntil, interval.end);
   }
