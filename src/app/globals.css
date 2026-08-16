@@ -1121,3 +1121,134 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
   .statistics-period-controls input { min-width: 0; flex: 1; }
   .finance-period-input { min-width: 145px; flex: 1; }
 }
+
+/* Responsive application refinements */
+html,body { max-width: 100%; }
+body { overflow-x: clip; }
+img,svg { max-width: 100%; }
+input,select,textarea { min-width: 0; }
+.sidebar-nav { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.app-content,.main-content { width: 100%; min-width: 0; }
+.tutor-week-scroll,.interactive-month-scroll,.schedule-board-scroll,.data-table { scrollbar-color: color-mix(in srgb,var(--orange) 38%,#d7d0c9) transparent; scrollbar-width: thin; }
+
+@media (max-width: 900px) {
+  .sidebar { width: min(320px,86vw); height: 100dvh; padding-top: max(20px,env(safe-area-inset-top)); padding-bottom: max(16px,env(safe-area-inset-bottom)); }
+  .sidebar-backdrop { touch-action: none; }
+  .topbar { padding-top: env(safe-area-inset-top); height: calc(64px + env(safe-area-inset-top)); }
+  .main-content { min-height: calc(100dvh - 64px - env(safe-area-inset-top)); padding-right: clamp(16px,3vw,24px); padding-left: clamp(16px,3vw,24px); }
+  .page-stack,.calendar-page { max-width: 100%; }
+  .schedule-board-scroll { scroll-padding-inline: 16px; scroll-snap-type: x proximity; overscroll-behavior-x: contain; }
+  .schedule-board-column { scroll-snap-align: start; }
+}
+
+@media (max-width: 680px) {
+  input,select,textarea { font-size: 16px !important; }
+  .topbar { height: calc(60px + env(safe-area-inset-top)); padding-right: max(13px,env(safe-area-inset-right)); padding-left: max(13px,env(safe-area-inset-left)); }
+  .topbar > img { width: 112px; }
+  .topbar .icon-button { width: 42px; height: 42px; }
+  .main-content { min-height: calc(100dvh - 60px - env(safe-area-inset-top)); padding: 18px 12px max(30px,env(safe-area-inset-bottom)); }
+  .page-stack,.calendar-page { gap: 15px; }
+  .page-header,.calendar-page-header { gap: 12px; }
+  .page-header h1,.calendar-page-header h1 { font-size: 25px; }
+  .page-header p { font-size: 11px; line-height: 1.5; }
+  .page-actions { flex-wrap: wrap; overflow: visible; }
+  .page-actions > * { min-width: 0; flex: 1 1 calc(50% - 5px); }
+  .button { min-height: 44px; padding-right: 14px; padding-left: 14px; }
+  .card,.weekly-calendar-card,.today-panel { border-radius: 16px; }
+  .card-toolbar { align-items: flex-start; flex-wrap: wrap; }
+  .card-toolbar > select,.card-toolbar .select-button { margin-left: auto; }
+
+  .calendar-header-actions { display: grid; grid-template-columns: 1fr; }
+  .calendar-header-actions .button { width: 100%; }
+  .week-toolbar { gap: 12px; }
+  .week-navigation { display: grid; grid-template-columns: 40px auto 40px minmax(0,1fr); gap: 6px; }
+  .calendar-nav-button { width: 40px; height: 40px; }
+  .today-button { height: 40px; }
+  .date-range { min-width: 0; margin-left: 4px; }
+  .date-range strong { font-size: 14px; }
+  .date-range span { font-size: 9px; }
+  .calendar-view-selector button { min-width: 0; height: 36px; }
+  .calendar-legend { gap: 10px; }
+  .tutor-week-scroll,.interactive-month-scroll { overscroll-behavior-x: contain; }
+  .tutor-week-calendar { min-width: 1040px; }
+  .tutor-week-calendar.tutor-day-calendar { min-width: 520px; }
+  .interactive-month-calendar { min-width: 860px; }
+
+  .schedule-board-scroll { width: calc(100% + 24px); margin-right: -12px; margin-left: -12px; padding: 0 12px 10px; scroll-padding-inline: 12px; scroll-snap-type: x mandatory; }
+  .schedule-week-board { display: flex; min-width: 0; gap: 10px; }
+  .schedule-board-column { min-height: 390px; flex: 0 0 min(82vw,290px); scroll-snap-align: start; }
+  .schedule-board-header { min-height: 132px; }
+  .schedule-column-add { height: 40px; }
+  .schedule-compact-card { min-height: 112px; }
+  .schedule-template-note { align-items: flex-start; text-align: left; }
+
+  .student-details-card { min-width: 0; }
+  .student-details-fields,.student-parent-name-grid { grid-template-columns: 1fr; }
+  .student-details-heading { align-items: flex-start; }
+  .student-profile-section { padding-right: 16px; padding-left: 16px; }
+  .student-list-identity { min-width: 0; padding-right: 82px; }
+  .student-list-identity > div { grid-template-columns: 1fr; }
+  .student-list-identity small { grid-column: auto; }
+  .student-list-card > .badge { top: 15px; right: 15px; }
+
+  .finance-table { display: flex; flex-direction: column; gap: 8px; padding: 10px; overflow: visible; }
+  .finance-table .data-head { display: none; }
+  .finance-table .data-row { display: grid; min-width: 0; grid-template-columns: minmax(0,1fr) auto; gap: 7px 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
+  .finance-table .data-row > span:first-child { grid-column: 1; grid-row: 1; color: var(--muted); font-size: 9px; }
+  .finance-table .transaction-name { grid-column: 1; grid-row: 2; }
+  .finance-table .data-row > span:nth-child(3) { grid-column: 1/-1; grid-row: 3; padding-top: 7px; border-top: 1px solid var(--line); }
+  .finance-table .data-row > span:nth-child(4) { grid-column: 2; grid-row: 1; justify-self: end; }
+  .finance-table .finance-row-value { grid-column: 2; grid-row: 2; align-items: flex-end; justify-self: end; }
+  .student-balance-card { grid-template-columns: 38px minmax(0,1fr); }
+  .student-balance-value { grid-column: 2; align-items: flex-start; }
+
+  .settings-content { min-width: 0; }
+  .settings-nav { margin-right: -12px; margin-left: -12px; padding-right: 12px; padding-left: 12px; scroll-padding-inline: 12px; scroll-snap-type: x proximity; }
+  .settings-nav button { min-height: 46px; scroll-snap-align: start; }
+  .preference-row { align-items: stretch; flex-direction: column; }
+  .preference-row select,.preference-row input { width: 100%; height: 44px; }
+  .settings-security-actions { align-items: stretch; flex-direction: column; }
+  .settings-security-actions .button { width: 100%; }
+  .settings-weekdays button { width: 42px; height: 40px; }
+
+  .task-row { align-items: flex-start; padding: 14px; }
+  .task-row > .icon-button { flex: 0 0 auto; }
+  .statistics-real-bars { min-height: 250px; padding-right: 14px; padding-left: 14px; }
+  .statistics-summary-list { padding-right: 14px; padding-left: 14px; }
+
+  .lesson-modal,.student-modal,.group-modal,.lesson-cancel-dialog { display: flex; max-height: calc(100dvh - 24px); flex-direction: column; }
+  .lesson-modal > form,.student-modal > form,.group-modal > form,.lesson-cancel-dialog > form { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .lesson-modal-header,.student-modal-header,.group-modal-header,.lesson-cancel-header { flex: 0 0 auto; padding: 18px 17px 15px; }
+  .lesson-modal form,.student-modal form,.group-modal form,.lesson-cancel-dialog form { padding-right: 17px; padding-left: 17px; }
+  .lesson-modal-footer,.student-modal-footer,.group-modal-footer,.lesson-cancel-actions { padding-bottom: max(0px,env(safe-area-inset-bottom)); }
+  .student-profile-panel,.group-profile-panel { width: 100%; max-width: none; padding-bottom: max(28px,env(safe-area-inset-bottom)); }
+  .student-panel-topbar,.group-panel-topbar { padding-top: max(17px,env(safe-area-inset-top)); }
+
+  .auth-page { min-height: 100dvh; padding: max(18px,env(safe-area-inset-top)) 12px max(18px,env(safe-area-inset-bottom)); overflow-y: auto; }
+  .auth-card { padding: 25px 18px; border-radius: 21px; }
+  .auth-copy h1 { font-size: 26px; }
+}
+
+@media (max-width: 410px) {
+  .topbar > img { width: 104px; }
+  .main-content { padding-right: 10px; padding-left: 10px; }
+  .page-actions > * { flex-basis: 100%; }
+  .week-navigation { grid-template-columns: 40px minmax(78px,auto) 40px; }
+  .date-range { grid-column: 1/-1; width: 100%; margin: 2px 0 0; }
+  .calendar-status-filter > span { display: none; }
+  .schedule-board-scroll { width: calc(100% + 20px); margin-right: -10px; margin-left: -10px; padding-right: 10px; padding-left: 10px; }
+  .schedule-board-column { flex-basis: min(86vw,290px); }
+  .student-filter button { min-width: 0; font-size: 9px; }
+  .student-list-identity { padding-right: 74px; }
+  .student-profile-metrics,.group-profile-metrics { grid-template-columns: 1fr; }
+  .lesson-cancellation-summary { align-items: flex-start; flex-direction: column; }
+  .lesson-cancel-copy { text-align: left; }
+}
+
+@media (max-height: 620px) and (max-width: 900px) {
+  .sidebar { padding-top: 12px; }
+  .sidebar-logo { min-height: 44px; }
+  .sidebar-logo img { width: 142px; }
+  .sidebar-nav { padding-top: 14px; }
+  .nav-link { height: 43px; }
+}

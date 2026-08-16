@@ -87,7 +87,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           const active = pathname === item.href;
 
           return (
-            <Link key={item.href} href={item.href} className={`nav-link ${active ? "nav-link-active" : ""}`}>
+            <Link key={item.href} href={item.href} className={`nav-link ${active ? "nav-link-active" : ""}`} onClick={onClose}>
               <Icon size={20} strokeWidth={active ? 2.35 : 1.8} />
               <span>{item.label}</span>
               {active && <span className="nav-active-dot" />}
