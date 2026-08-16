@@ -164,6 +164,11 @@ export default function FinancePage() {
 
 function StudentBalances({ students, balances, filter, search, onFilterChange, onSearchChange }: { students: Student[]; balances: Map<string, number>; filter: BalanceFilter; search: string; onFilterChange: (value: BalanceFilter) => void; onSearchChange: (value: string) => void }) {
   const normalizedSearch = search.trim().toLocaleLowerCase("ru-RU");
+  const summaryStudents = students.filter((student) => filter === "all" || student.status === filter);
+  const positiveBalances = summaryStudents.map((student) => balances.get(student.id) ?? 0).filter((balance) => balance > 0);
+  const negativeBalances = summaryStudents.map((student) => balances.get(student.id) ?? 0).filter((balance) => balance < 0);
+  const depositsTotal = positiveBalances.reduce((total, balance) => total + balance, 0);
+  const creditsTotal = negativeBalances.reduce((total, balance) => total + Math.abs(balance), 0);
   const visibleStudents = students
     .filter((student) => filter === "all" || student.status === filter)
     .filter((student) => !normalizedSearch || `${student.firstName} ${student.lastName}`.toLocaleLowerCase("ru-RU").includes(normalizedSearch))
@@ -184,6 +189,10 @@ function StudentBalances({ students, balances, filter, search, onFilterChange, o
             <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Начните вводить имя ученика" aria-label="Поиск ученика" />
           </label>
         </div>
+      </div>
+      <div className="balance-summary-strip" aria-label="Сводка балансов учеников">
+        <div className="balance-summary-item balance-summary-deposits"><span>Депозиты</span><strong>{formatMoney(depositsTotal)}</strong><small>{positiveBalances.length} чел.</small></div>
+        <div className="balance-summary-item balance-summary-credits"><span>Кредиты</span><strong>{formatMoney(creditsTotal)}</strong><small>{negativeBalances.length} чел.</small></div>
       </div>
       {visibleStudents.length ? (
         <div className="student-balances-grid">
