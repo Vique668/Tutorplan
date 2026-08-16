@@ -460,8 +460,12 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
 .series-delete-confirmation input { margin: 0; accent-color: var(--red); }
 .lesson-modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; padding-top: 17px; border-top: 1px solid var(--line); }
 .lesson-modal-footer > div { display: flex; gap: 9px; margin-left: auto; }
-.lesson-editor-actions { align-items: flex-end; }
-.lesson-editor-actions > div { min-width: 0; flex: 1 1 auto; flex-wrap: wrap; justify-content: flex-end; }
+.lesson-editor-actions { align-items: stretch; flex-direction: column; }
+.lesson-editor-actions > div { width: 100%; min-width: 0; margin-left: 0; }
+.lesson-editor-actions .lesson-editor-status-actions { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 9px; }
+.lesson-editor-status-actions .button { width: 100%; min-width: 0; justify-content: center; white-space: nowrap; }
+.lesson-editor-actions .lesson-editor-bottom-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 4px; }
+.lesson-editor-bottom-actions .delete-lesson-button { width: auto; }
 .delete-lesson-button { color: var(--red); }
 .delete-lesson-button:hover { background: #fff1f1; }
 .lesson-cancel-layer { position: fixed; inset: 0; z-index: 120; display: grid; padding: 24px; place-items: center; overflow-y: auto; background: rgba(47,40,35,.42); backdrop-filter: blur(5px); }
@@ -1082,6 +1086,10 @@ kbd { padding: 3px 6px; border: 1px solid #e6e1dc; border-radius: 6px; color: #a
   .lesson-modal-footer { align-items: stretch; flex-direction: column-reverse; }
   .lesson-modal-footer > div { width: 100%; margin-left: 0; }
   .lesson-modal-footer > div .button { flex: 1; }
+  .lesson-editor-actions { flex-direction: column; }
+  .lesson-editor-actions .lesson-editor-status-actions { grid-template-columns: 1fr; }
+  .lesson-editor-actions .lesson-editor-bottom-actions { align-items: stretch; flex-direction: column-reverse; }
+  .lesson-editor-bottom-actions .delete-lesson-button { width: 100%; }
   .delete-lesson-button { width: 100%; }
   .series-scope-fieldset { grid-template-columns: 1fr; }
   .series-delete-confirmation { grid-template-columns: 1fr; }

@@ -197,8 +197,7 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
           {normalizeStatus(lesson.status) === "cancelled" && <div className="lesson-cancellation-summary"><span>Причина: <strong>{cancellationReasonLabel(lesson.cancellationReason)}</strong></span><span>Штраф: <strong>{(lesson.cancellationFee ?? 0).toLocaleString("ru-RU")} ₽</strong></span></div>}
           {(validationError || error) && <p className="lesson-form-error" role="alert">{validationError || error}</p>}
           <div className="lesson-modal-footer lesson-editor-actions">
-            <Button type="button" variant="ghost" className="delete-lesson-button" icon={<Trash2 size={16} />} onClick={() => { if (window.confirm("Удалить этот урок без возможности восстановления? Связанное начисление также будет удалено.")) void onDelete(); }} disabled={isMutating}>Удалить урок</Button>
-            <div>
+            <div className="lesson-editor-status-actions">
               <Button type="button" variant="secondary" icon={<CheckCircle2 size={16} />} onClick={() => void onStatusChange("completed")} disabled={isMutating || lesson.status === "completed"}>Провести урок</Button>
               {normalizeStatus(lesson.status) !== "cancelled" && lesson.status !== "completed" && <Button type="button" variant="secondary" icon={<CalendarClock size={16} />} onClick={() => { setRescheduleValidationError(null); setRescheduleDraft(toRescheduleDraft(lesson)); setRescheduleDialogOpen(true); }} disabled={isMutating}>Перенести урок</Button>}
               {normalizeStatus(lesson.status) === "cancelled" ? (
@@ -216,6 +215,9 @@ export function CalendarLessonDetailsModal({ lesson, students, groups, isMutatin
               ) : (
                 <Button type="button" variant="secondary" icon={<Ban size={16} />} onClick={() => { setCancelValidationError(null); setCancelDialogOpen(true); }} disabled={isMutating}>Отменить урок</Button>
               )}
+            </div>
+            <div className="lesson-editor-bottom-actions">
+              <Button type="button" variant="ghost" className="delete-lesson-button" icon={<Trash2 size={16} />} onClick={() => { if (window.confirm("Удалить этот урок без возможности восстановления? Связанное начисление также будет удалено.")) void onDelete(); }} disabled={isMutating}>Удалить урок</Button>
               <Button type="submit" disabled={isMutating}>{isMutating ? "Сохранение…" : "Сохранить изменения"}</Button>
             </div>
           </div>
