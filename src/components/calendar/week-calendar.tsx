@@ -110,7 +110,7 @@ export function WeekCalendar({ dates, lessons, onEmptySlotClick, onLessonClick, 
                           type="button"
                           className="tutor-lesson tutor-lesson-lavender calendar-other-event"
                           key={lesson.id}
-                          title={lesson.notes || lesson.participant}
+                          title={lesson.notes ? `${lesson.participant}: ${lesson.notes}` : lesson.participant}
                           style={{
                             top: `${((visibleStart / 60) - firstHour) * hourHeight + 3}px`,
                             height: `${((visibleEnd - visibleStart) / 60) * hourHeight - 6}px`,
@@ -119,7 +119,7 @@ export function WeekCalendar({ dates, lessons, onEmptySlotClick, onLessonClick, 
                         >
                           <strong>{lesson.participant}</strong>
                           <span>{lesson.startTime}–{formatLessonEnd(lesson.startTime, lesson.duration)}</span>
-                          <small><b className="calendar-event-kind calendar-event-kind-other">Другое</b>{lesson.notes && <span>{lesson.notes}</span>}</small>
+                          <small><b className="calendar-event-kind calendar-event-kind-other">Другое</b></small>
                         </button>
                       );
                     }
