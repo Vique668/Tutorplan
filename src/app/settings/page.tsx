@@ -36,6 +36,16 @@ export default function SettingsPage() {
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const { mode, activeTheme, setMode } = useTheme();
 
+  useEffect(() => {
+    const selectRequestedSection = () => {
+      const requestedSection = window.location.hash.slice(1);
+      if (isSettingsSection(requestedSection)) setSection(requestedSection);
+    };
+    selectRequestedSection();
+    window.addEventListener("hashchange", selectRequestedSection);
+    return () => window.removeEventListener("hashchange", selectRequestedSection);
+  }, []);
+
   const load = useCallback(async () => { setIsLoading(true); setError(null); try { const loaded = await getAccountSettings(); setProfile(loaded.profile); setSettings(loaded.settings); setMode(loaded.settings.appearanceMode); } catch (loadError) { setError(getErrorMessage(loadError)); } finally { setIsLoading(false); } }, [setMode]);
   useEffect(() => { void load(); }, [load]);
 
@@ -70,4 +80,5 @@ export default function SettingsPage() {
 }
 
 function SettingsTitle({ title, text }: { title: string; text: string }) { return <div className="settings-card-title"><div><h2>{title}</h2><p>{text}</p></div></div>; }
+function isSettingsSection(value: string | null): value is Section { return sections.some((item) => item.id === value); }
 function getErrorMessage(error: unknown) { if (error instanceof Error) return error.message; if (error && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message; return "Неизвестная ошибка Supabase"; }

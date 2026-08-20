@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Bell, Menu } from "lucide-react";
 
 export function Header({ onMenuOpen }: { onMenuOpen: () => void }) {
@@ -9,10 +10,9 @@ export function Header({ onMenuOpen }: { onMenuOpen: () => void }) {
         <Menu size={22} />
       </button>
       <img src="/brand/logo-full.png?v=transparent-1" alt="TutorPlan" width={124} height={42} decoding="async" />
-      <button className="icon-button notification-button" aria-label="Уведомления">
+      <Link className="icon-button notification-button" href="/settings#notifications" aria-label="Настройки уведомлений">
         <Bell size={19} />
-        <span />
-      </button>
+      </Link>
     </header>
   );
 }

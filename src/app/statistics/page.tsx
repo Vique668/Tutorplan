@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
+import type { FinanceTransaction } from "@/types/finance";
 import type { Lesson } from "@/types/lesson";
 import { getZonedParts, zonedLocalToIso } from "@/lib/date-time";
+import { getFinanceTransactions } from "../../../lib/supabase/finance";
 import { getCompletedLessons } from "../../../lib/supabase/lessons";
 import { getTutorTimezone } from "../../../lib/supabase/settings";
 
@@ -17,6 +19,7 @@ export default function StatisticsPage() {
   const [periodType, setPeriodType] = useState<PeriodType>("month");
   const [period, setPeriod] = useState(() => toMonthKey(new Date()));
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [financeTransactions, setFinanceTransactions] = useState<FinanceTransaction[]>([]);
   const [timezone, setTimezone] = useState("Europe/Moscow");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,11 +30,15 @@ export default function StatisticsPage() {
     setError(null);
     try {
       const loadedTimezone = await getTutorTimezone();
-      const completedLessons = await getCompletedLessons(
-        zonedLocalToIso(range.from, "00:00", loadedTimezone),
-        zonedLocalToIso(range.to, "00:00", loadedTimezone),
-      );
+      const [completedLessons, transactions] = await Promise.all([
+        getCompletedLessons(
+          zonedLocalToIso(range.from, "00:00", loadedTimezone),
+          zonedLocalToIso(range.to, "00:00", loadedTimezone),
+        ),
+        getFinanceTransactions(range.from, range.to),
+      ]);
       setLessons(completedLessons);
+      setFinanceTransactions(transactions);
       setTimezone(loadedTimezone);
     } catch (loadError) {
       setError(getErrorMessage(loadError));
@@ -43,8 +50,14 @@ export default function StatisticsPage() {
   useEffect(() => { void load(); }, [load]);
 
   const teachingMinutes = lessons.reduce((total, lesson) => total + durationMinutes(lesson), 0);
-  const income = lessons.reduce((total, lesson) => total + lesson.price, 0);
-  const averagePrice = lessons.length ? Math.round(income / lessons.length) : 0;
+  const completedLessonIds = new Set(lessons.map((lesson) => lesson.id));
+  const postedLessonCharges = financeTransactions.filter((item) => item.type === "lesson_charge" && item.status === "posted");
+  const completedLessonIncome = postedLessonCharges
+    .filter((item) => item.lessonId && completedLessonIds.has(item.lessonId))
+    .reduce((total, item) => total + item.amount, 0);
+  const income = postedLessonCharges.reduce((total, item) => total + item.amount, 0);
+  const otherCharges = Math.max(0, income - completedLessonIncome);
+  const averagePrice = lessons.length ? Math.round(completedLessonIncome / lessons.length) : 0;
   const participants = new Set(lessons.map((lesson) => lesson.studentId ? `student:${lesson.studentId}` : `group:${lesson.groupId}`)).size;
   const activity = buildActivity(lessons, range.from, range.to, periodType, timezone);
   const maxActivity = Math.max(...activity.map((item) => item.minutes), 1);
@@ -56,19 +69,19 @@ export default function StatisticsPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader title="Статистика" description="Показатели только по проведённым урокам" actions={<div className="statistics-period-controls"><div className="segmented"><button className={periodType === "month" ? "active" : ""} onClick={() => switchPeriodType("month")}>Месяц</button><button className={periodType === "year" ? "active" : ""} onClick={() => switchPeriodType("year")}>Год</button></div><input type={periodType === "month" ? "month" : "number"} min={2020} max={2100} value={period} onChange={(event) => setPeriod(event.target.value)} aria-label="Период статистики" /></div>} />
+      <PageHeader title="Статистика" description="Проведённые уроки и реальные финансовые начисления" actions={<div className="statistics-period-controls"><div className="segmented"><button className={periodType === "month" ? "active" : ""} onClick={() => switchPeriodType("month")}>Месяц</button><button className={periodType === "year" ? "active" : ""} onClick={() => switchPeriodType("year")}>Год</button></div><input type={periodType === "month" ? "month" : "number"} min={2020} max={2100} value={period} onChange={(event) => setPeriod(event.target.value)} aria-label="Период статистики" /></div>} />
       {isLoading && <Card><div className="students-empty-state"><LoaderCircle className="spin" size={28} /><h2>Считаем статистику</h2></div></Card>}
       {error && <Card><div className="students-empty-state" role="alert"><CircleAlert size={28} /><h2>Не удалось загрузить статистику</h2><p>{error}</p></div></Card>}
       {!isLoading && !error && <>
         <div className="stats-grid">
           <StatCard label="Проведено уроков" value={String(lessons.length)} note="Статус: проведено" icon={<Target size={21} />} />
           <StatCard label="Учебных часов" value={formatHours(teachingMinutes)} note="Только проведённые уроки" icon={<Clock3 size={21} />} tone="blue" />
-          <StatCard label="Доход" value={`${income.toLocaleString("ru-RU")} ₽`} note="По стоимости проведённых уроков" icon={<WalletCards size={21} />} tone="green" />
+          <StatCard label="Доход" value={`${income.toLocaleString("ru-RU")} ₽`} note={otherCharges > 0 ? `${completedLessonIncome.toLocaleString("ru-RU")} ₽ за уроки · ${otherCharges.toLocaleString("ru-RU")} ₽ прочие начисления` : "По реальным начислениям в финансах"} icon={<WalletCards size={21} />} tone="green" />
           <StatCard label="Средняя стоимость" value={`${averagePrice.toLocaleString("ru-RU")} ₽`} note="За проведённый урок" icon={<TrendingUp size={21} />} tone="purple" />
         </div>
         <div className="statistics-grid">
           <Card className="activity-card"><div className="card-toolbar"><div><h2>Учебная активность</h2><p>Проведённые часы по {periodType === "month" ? "неделям" : "месяцам"}</p></div><Badge tone="green"><TrendingUp size={14} /> {formatHours(teachingMinutes)}</Badge></div><div className="statistics-real-bars">{activity.map((item) => <div key={item.label}><div><span style={{ height: `${Math.max(2, item.minutes / maxActivity * 100)}%` }} /></div><small>{item.label}</small><strong>{formatHours(item.minutes)}</strong></div>)}</div></Card>
-          <Card className="subjects-card"><div className="card-toolbar"><div><h2>Итоги периода</h2><p>Только записи со статусом «Проведено»</p></div></div><div className="statistics-summary-list"><div><WalletCards size={18} /><span>Доход по урокам</span><strong>{income.toLocaleString("ru-RU")} ₽</strong></div><div><CalendarRange size={18} /><span>Проведённых уроков</span><strong>{lessons.length}</strong></div><div><Users size={18} /><span>Учеников и групп</span><strong>{participants}</strong></div><div><Target size={18} /><span>Средняя стоимость урока</span><strong>{averagePrice.toLocaleString("ru-RU")} ₽</strong></div></div></Card>
+          <Card className="subjects-card"><div className="card-toolbar"><div><h2>Итоги периода</h2><p>Уроки — по статусу, доход — по финансовому журналу</p></div></div><div className="statistics-summary-list"><div><WalletCards size={18} /><span>Доход по начислениям</span><strong>{income.toLocaleString("ru-RU")} ₽</strong></div><div><CalendarRange size={18} /><span>Проведённых уроков</span><strong>{lessons.length}</strong></div><div><Users size={18} /><span>Учеников и групп</span><strong>{participants}</strong></div><div><Target size={18} /><span>Средний доход за проведённый урок</span><strong>{averagePrice.toLocaleString("ru-RU")} ₽</strong></div></div></Card>
         </div>
         {lessons.length === 0 && <Card><div className="students-empty-state"><CalendarRange size={30} /><h2>За выбранный период проведённых уроков нет</h2><p>Статистика появится после перевода занятия в статус «Проведено».</p></div></Card>}
       </>}
